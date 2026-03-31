@@ -1,6 +1,9 @@
 (= (tv-confidence $tv)
    (if (is-var $tv) 1.0 (if (= $tv (STV $_s $c)) (if (is-var $c) 1.0 $c) 1.0)))
 
+(= (first-or () $default) $default)
+(= (first-or (cons $x $_rest) $_default) $x)
+
 (= (goal-view ($type ($kbid $ctx $vars) $prf $tv))
    (proof-goal ($kbid $ctx $vars) $type $prf $tv))
 (= (goal-view (CPU $fun $args $res))
@@ -81,6 +84,8 @@
 
 (= (list-reverse $xs) (list-reverse-acc $xs ()))
 
+(= (contains-hash? $x) (fold-nested (|-> ($acc $elem) (or (== $elem #) $acc)) false $x))
+
 (= (goal-key-components (: $kb $_prf $type $_tv)) ($kb $type))
 (= (goal-key-components ($type ($kbid $ctx $vars) $_prf $_tv)) (($kbid $ctx $vars) $type))
 (= (goal-key-components (CPU $_fun $_args $_res)) ())
@@ -105,6 +110,8 @@
 (= (next-aid) (next-search-id bwd_aid))
 
 (= (next-pid) (next-search-id bwd_pid))
+
+(= (cpu-call $steps $fun $args) (reduce (reduce (cons $fun $args))))
 
 (= (proof-stats-by-id $pid) (match &proof_stats ($pid $score $ev) ($score $ev)))
 

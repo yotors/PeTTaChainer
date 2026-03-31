@@ -1,10 +1,5 @@
 (= (goal-term-by-id $gid) (match &goal_by_id ($gid $goal) $goal))
 
-(= (first-or () $default) $default)
-(= (first-or (cons $x $_rest) $_default) $x)
-
-(= (clear-spaces $spaces) (progn (foreach-flat remove-all-atoms $spaces) ()))
-
 (= (goal-expanded? $gid) (first-or (collapse (once (match &goal_expanded ($gid true) true))) false))
 
 (= (goal-pending-score-of $gid)
@@ -81,12 +76,6 @@
 (= (aggregate-spec-result (aggregate-result-bare $fun $args dist-average) $acc)
    (CPU $fun $args (reduce (reduce (DistAverageFromSumCount $acc)))))
 
-(= (aggregate-child-key $pid)
-   (let*
-      (($atom (proof-output-atom $pid))
-        ($key (goal-key-components $atom)))
-      (if (== $key ()) $atom $key)))
-
 (= (waiter-state-by-id $wid) (match &waiter_state ($wid $state) $state))
 
 (= (set-waiter-state $wid $state)
@@ -134,7 +123,9 @@
       $pid)
    (let*
       (($child-atom (proof-output-atom $pid))
-        ($child-key (aggregate-child-key $pid))
+        ($child-key
+           (let $key (goal-key-components $child-atom)
+              (if (== $key ()) $child-atom $key)))
         (($_pscore $pev) (proof-stats-by-id $pid))
         ($step-spec (copy_term (aggregate-spec-step $spec))))
       (if (is-member $child-key $seen) $agenda
@@ -343,19 +334,21 @@
    (if (= $prem (proof-output-atom $pid)) (instantiate-and-bundle (and-bundle $goal $rest) $pids) (empty)))
 
 (= (clear-backward-state)
-   (clear-spaces
-      (() &goal_by_id
-         &goal_lookup
-         &goal_expanded
-         &goal_pending_score
-         &goal_waiter
-         &waiter_state
-         &and_node
-         &goal_proof
-         &proof_goal
-         &proof_stats
-         &proof_kind
-         &proof_children)))
+   (progn
+      (foreach-flat remove-all-atoms
+         (() &goal_by_id
+            &goal_lookup
+            &goal_expanded
+            &goal_pending_score
+            &goal_waiter
+            &waiter_state
+            &and_node
+            &goal_proof
+            &proof_goal
+            &proof_stats
+            &proof_kind
+            &proof_children))
+      ()))
 
 (= (chainer $steps $goal)
    (let*
@@ -374,7 +367,3 @@
               (if (<= $search-steps-left 0) (search-state $search-steps-left $agenda2)
                  (search-goals-heap $search-steps-left $agenda2)))))
       (once (goal-results $root-gid))))
-
-(= (contains-hash? $x) (fold-nested (|-> ($acc $elem) (or (== $elem #) $acc)) false $x))
-
-(= (cpu-call $steps $fun $args) (reduce (reduce (cons $fun $args))))
