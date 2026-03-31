@@ -63,19 +63,23 @@
       (aggregate-step-fold-tv $fun)
       (aggregate-result-bare FoldAllTVFormulaCompiled ($kb $pattern $init $fun $finish) $finish)))
 
+(= (aggregate-spec-step (aggregate-spec $_child-goal $_init $step-spec $_result-spec)) $step-spec)
+
+(= (aggregate-spec-step-value (aggregate-step-fold-value $_fun $pattern $value) $child-atom)
+   (let ($pattern ($_ckbid $_cctx $_cvars) $_cprf $_ctv) (copy_term $child-atom) $value))
+
 (= (aggregate-spec-step-acc (aggregate-step-fold-value $fun $pattern $value) $acc $child-atom $_child-tv)
-   (let ($pattern ($_ckbid $_cctx $_cvars) $_cprf $_ctv) (copy_term $child-atom)
-      (eval ($fun $acc $value))))
+   (let $val (aggregate-spec-step-value (aggregate-step-fold-value $fun $pattern $value) $child-atom)
+      (eval ($fun $acc $val))))
 (= (aggregate-spec-step-acc (aggregate-step-fold-tv $fun) $acc $_child-atom $child-tv)
    (eval ($fun $acc $child-tv)))
 (= (aggregate-spec-step-acc aggregate-step-dist-average $acc $_child-atom $child-tv)
    (reduce (reduce (DistSumCountAcc $acc $child-tv))))
 
-(= (aggregate-result-output identity $acc) $acc)
-(= (aggregate-result-output dist-average $acc) (reduce (reduce (DistAverageFromSumCount $acc))))
-
-(= (aggregate-spec-result (aggregate-result-bare $fun $args $acc-mode) $acc)
-   (CPU $fun $args (aggregate-result-output $acc-mode $acc)))
+(= (aggregate-spec-result (aggregate-result-bare $fun $args identity) $acc)
+   (CPU $fun $args $acc))
+(= (aggregate-spec-result (aggregate-result-bare $fun $args dist-average) $acc)
+   (CPU $fun $args (reduce (reduce (DistAverageFromSumCount $acc)))))
 
 (= (aggregate-child-key $pid)
    (let*
@@ -132,8 +136,7 @@
       (($child-atom (proof-output-atom $pid))
         ($child-key (aggregate-child-key $pid))
         (($_pscore $pev) (proof-stats-by-id $pid))
-        ((aggregate-spec $_goal $_init $step-spec $_result-spec) $spec)
-        ($step-spec (copy_term $step-spec)))
+        ($step-spec (copy_term (aggregate-spec-step $spec))))
       (if (is-member $child-key $seen) $agenda
          (let*
             (($nacc (aggregate-spec-step-acc $step-spec $acc $child-atom (proof-tv-by-id $pid)))
