@@ -251,12 +251,10 @@
 
 (= (direct-goal-results-view $steps (cpu-goal $fun $args $_res))
    (superpose ((CPU $fun $args (cpu-call $steps $fun $args)))))
-(= (direct-goal-results-view $steps $goal-view)
+(= (direct-goal-results-view $steps (proof-goal $kb $type $prf $tv))
    (let $query-goal
-      (if (= $goal-view (proof-goal $kb $type $prf $tv))
-         (let $qtype (if (and (is-expr $type) (contains-hash? $type)) (map-nested unwrap $type) $type)
-            ($qtype $kb $prf $tv))
-         (goal-view-term $goal-view))
+      (let $qtype (if (and (is-expr $type) (contains-hash? $type)) (map-nested unwrap $type) $type)
+         ($qtype $kb $prf $tv))
       (match &kb $candidate
          (direct-goal-fact-match $query-goal $candidate))))
 
@@ -274,7 +272,9 @@
            (or $exact-hit
               (if (= $goal-view (proof-goal $kb $type $prf $tv))
                  (=? ($type $kb $prf $tv) $result)
-                 (goal-key-eq? (goal-view-term $goal-view) $result)))))
+                 (if (= $goal-view (cpu-goal $fun $args $res))
+                    (goal-key-eq? (CPU $fun $args $res) $result)
+                    false)))))
       (expand-state $nagenda $nexact-hit)))
 
 (= (expand-direct-goal-heap $agenda $steps $gid $goal)
@@ -345,9 +345,8 @@
         ($goal-view (goal-view $goal))
         ($_expand (add-atom &goal_expanded ($gid true)))
         ($nagenda0
-           (if (if (= $goal-view (cpu-goal $fun $_args $_res))
-                  (is-member $fun (() FoldAllFormulaCompiled FoldAllTVFormulaCompiled))
-                  false)
+           (if (and (= $goal-view (cpu-goal $fun $_args $_res))
+                  (is-member $fun (() FoldAllFormulaCompiled FoldAllTVFormulaCompiled)))
               (spawn-aggregate-goal-heap $agenda $score $gid $goal-view)
               (expand-direct-goal-heap $agenda $steps $gid $goal)))
         ($nagenda (if (== $nagenda0 ()) (empty_heap) $nagenda0)))
