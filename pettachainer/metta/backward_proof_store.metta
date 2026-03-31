@@ -1,14 +1,13 @@
 (= (proof-goal-by-id $pid) (match &proof_goal ($pid $gid) $gid))
 
-(= (proof-output-term $pid $term)
-   (if (= $term ($type ($kbid $_ctx $_vars) $_prf $tv))
-      ($type ($kbid $_ctx $_vars) (proof-ref $pid) $tv)
-      $term))
-
 (= (proof-output-atom $pid)
    (case (proof-kind-by-id $pid) (
-        ((leaf $term) (proof-output-term $pid $term))
-        ((rule $aid $term) (proof-output-term $pid $term))
+        ((leaf ($type ($kbid $_ctx $_vars) $_prf $tv))
+           ($type ($kbid $_ctx $_vars) (proof-ref $pid) $tv))
+        ((rule $_aid ($type ($kbid $_ctx $_vars) $_prf $tv))
+           ($type ($kbid $_ctx $_vars) (proof-ref $pid) $tv))
+        ((leaf $term) $term)
+        ((rule $_aid $term) $term)
         ($other (empty)))))
 
 (= (materialize-proof-refs $term)
@@ -22,45 +21,37 @@
    (if (= $atom ($type $kb $prf $tv)) ($type $kb (materialize-proof-refs $prf) $tv)
       $atom))
 
-(= (materialize-rule-proof $aid $pid-list)
-   (case
-      (instantiate-and-bundle
-         (copy_term (match &and_node ($aid $_parent $_rule $_bound $bundle) $bundle))
-         $pid-list) (
-        ((and-bundle ($_type $_kb $prf $_tv) $_rest)
-           (cons rule-proof
-              (cons (materialize-proof-refs (car-atom $prf))
-                 (map-flat materialize-proof-refs (cdr-atom $prf)))))
-        ($other $other))))
-
 (= (materialize-proof $pid)
    (case (proof-kind-by-id $pid) (
         ((leaf (CPU $_fun $_args $_res)) cpu)
         ((leaf $raw) (if (= $raw ($_type ($_kbid $_ctx $_vars) $prf $_tv)) $prf $raw))
         ((rule $aid $_term)
-           (materialize-rule-proof $aid (match &proof_children ($pid $kids) $kids)))
+           (case
+              (instantiate-and-bundle
+                 (copy_term (match &and_node ($aid $_parent $_rule $_bound $bundle) $bundle))
+                 (match &proof_children ($pid $kids) $kids)) (
+                ((and-bundle ($_type $_kb $prf $_tv) $_rest)
+                   (cons rule-proof
+                      (cons (materialize-proof-refs (car-atom $prf))
+                         (map-flat materialize-proof-refs (cdr-atom $prf)))))
+                ($other $other))))
         ($other $other))))
 
 (= (goal-proof-pids $gid)
    (collapse (match &goal_proof ($gid $pid) $pid)))
 
-(= (goal-proof-atoms $pids)
-   (if (== $pids ()) () (map-flat proof-output-atom $pids)))
-
 (= (goal-merged-proof-atom $gid)
-   (let $pids (goal-proof-pids $gid)
-      (if (== $pids ()) ()
-         (fold-flat
-            (|-> ($acc $pid) (merge-proof-atoms $acc (proof-output-atom $pid)))
-            (proof-output-atom (car-atom $pids))
-            (cdr-atom $pids)))))
-
-(= (materialize-result-atoms $atoms)
-   (if (== $atoms ()) () (map-flat materialize-result-atom $atoms)))
+   (case (goal-proof-pids $gid) (
+        (() ())
+        ((cons $pid $pids)
+           (fold-flat
+              (|-> ($acc $next-pid) (merge-proof-atoms $acc (proof-output-atom $next-pid)))
+              (proof-output-atom $pid)
+              $pids)))))
 
 (= (goal-results $gid)
    (if (goal-has-type-vars? $gid)
-      (materialize-result-atoms (goal-proof-atoms (goal-proof-pids $gid)))
+      (map-flat materialize-result-atom (map-flat proof-output-atom (goal-proof-pids $gid)))
       (let $merged (goal-merged-proof-atom $gid)
          (if (== $merged ()) ()
             ((materialize-result-atom $merged))))))
