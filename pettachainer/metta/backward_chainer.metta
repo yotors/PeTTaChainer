@@ -11,29 +11,22 @@
 (= (nonempty? (cons $_ $_rest)) true)
 
 (= (clear-spaces ()) ())
-(= (clear-spaces (cons $space $rest))
-   (let $_ (remove-all-atoms $space) (clear-spaces $rest)))
+(= (clear-spaces (cons $space $rest)) (let $_ (remove-all-atoms $space) (clear-spaces $rest)))
 
-(= (goal-expanded? $gid)
-   (nonempty? (collapse (once (match &goal_expanded ($gid true) true)))))
+(= (goal-expanded? $gid) (nonempty? (collapse (once (match &goal_expanded ($gid true) true)))))
 
 (= (goal-pending-score-of $gid)
    (first-or (collapse (once (match &goal_pending_score ($gid $score) $score))) 0.0))
 
 (= (clear-goal-pending-score $gid)
    (progn
-      (collapse
-         (match &goal_pending_score ($gid $score)
-            (remove-atom &goal_pending_score ($gid $score))))
+      (collapse (match &goal_pending_score ($gid $score) (remove-atom &goal_pending_score ($gid $score))))
       ()))
 
-(= (goal-class $goal)
-   (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv)) proof direct))
+(= (goal-class $goal) (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv)) proof direct))
 
 (= (goal-term-has-type-vars? $goal)
-   (if (= $goal ($type ($_kbid $_ctx $_vars) $_prf $_tv))
-      (nonempty? (extract-vars $type))
-      false))
+   (if (= $goal ($type ($_kbid $_ctx $_vars) $_prf $_tv)) (nonempty? (extract-vars $type)) false))
 
 (= (goal-has-type-vars? $gid) (goal-term-has-type-vars? (goal-term-by-id $gid)))
 
@@ -43,12 +36,8 @@
          (once
             (if (= $goal ($type ($kbid $_ctx $_vars) $kbprf $_tv))
                (let $sealed-type (sealed (extract-vars $type) $type)
-                  (match &goal_lookup
-                     (($sealed-type ($kbid $_ctx $_vars) $_stored-prf $_stored-tv) $gid)
-                     (if
-                        (goal-key-eq?
-                           ($sealed-type ($kbid $_ctx $_vars) $_stored-prf $_stored-tv)
-                           $goal)
+                  (match &goal_lookup (($sealed-type ($kbid $_ctx $_vars) $_stored-prf $_stored-tv) $gid)
+                     (if (goal-key-eq? ($sealed-type ($kbid $_ctx $_vars) $_stored-prf $_stored-tv) $goal)
                         $gid
                         (empty))))
                (let $sealed-goal (sealed (extract-vars $goal) $goal)
@@ -71,8 +60,7 @@
          (if (>= $current $score) $agenda
             (let*
                (($goal (goal-term-by-id $gid))
-                 ($closed-proof-bonus
-                    (if (goal-term-has-type-vars? $goal) 0.0 1.0))
+                 ($closed-proof-bonus (if (goal-term-has-type-vars? $goal) 0.0 1.0))
                  ($bonus (if (== (goal-class $goal) proof) $closed-proof-bonus 2.0))
                  ($priority (- 0 (+ (* 1000000.0 $score) $bonus)))
                  ($nagenda (add_to_heap $agenda $priority (qitem $score $gid)))
@@ -80,8 +68,7 @@
                  ($_set (add-atom &goal_pending_score ($gid $score))))
                $nagenda)))))
 
-(= (normalize-heap $agenda)
-   (if (== $agenda ()) (empty_heap) $agenda))
+(= (normalize-heap $agenda) (if (== $agenda ()) (empty_heap) $agenda))
 
 (= (needs-steps-cpu-fun? $fun) false)
 
@@ -98,15 +85,12 @@
       $child-goal))
 
 (= (aggregate-goal-spec (CPU FoldAllFormulaCompiled ($kb $pattern $value $init $fun) $_goalres))
-   (aggregate-spec
-      (aggregate-compiled-child-goal (aggregate-compiled-query $kb $pattern))
+   (aggregate-spec (aggregate-compiled-child-goal (aggregate-compiled-query $kb $pattern))
       $init
       (aggregate-step-fold-value $fun $pattern $value)
       (aggregate-result-bare FoldAllFormulaCompiled ($kb $pattern $value $init $fun) identity)))
-
 (= (aggregate-goal-spec (CPU FoldAllTVFormulaCompiled ($kb $pattern $init $fun $finish) $_goalres))
-   (aggregate-spec
-      (aggregate-compiled-child-goal (aggregate-compiled-query $kb $pattern))
+   (aggregate-spec (aggregate-compiled-child-goal (aggregate-compiled-query $kb $pattern))
       $init
       (aggregate-step-fold-tv $fun)
       (aggregate-result-bare FoldAllTVFormulaCompiled ($kb $pattern $init $fun $finish) $finish)))
@@ -122,29 +106,16 @@
 (= (aggregate-spec-step-value (aggregate-step-fold-value $_fun $pattern $value) $child-atom)
    (let ($pattern ($_ckbid $_cctx $_cvars) $_cprf $_ctv) (copy_term $child-atom) $value))
 
-(= (aggregate-spec-step-acc
-      (aggregate-step-fold-value $fun $pattern $value)
-      $acc
-      $child-atom
-      $_child-tv)
-   (let $val
-      (aggregate-spec-step-value (aggregate-step-fold-value $fun $pattern $value) $child-atom)
+(= (aggregate-spec-step-acc (aggregate-step-fold-value $fun $pattern $value) $acc $child-atom $_child-tv)
+   (let $val (aggregate-spec-step-value (aggregate-step-fold-value $fun $pattern $value) $child-atom)
       (eval ($fun $acc $val))))
-
-(= (aggregate-spec-step-acc
-      (aggregate-step-fold-tv $fun)
-      $acc
-      $_child-atom
-      $child-tv)
+(= (aggregate-spec-step-acc (aggregate-step-fold-tv $fun) $acc $_child-atom $child-tv)
    (eval ($fun $acc $child-tv)))
-
 (= (aggregate-spec-step-acc aggregate-step-dist-average $acc $_child-atom $child-tv)
    (reduce (reduce (DistSumCountAcc $acc $child-tv))))
 
 (= (aggregate-result-output identity $acc) $acc)
-
-(= (aggregate-result-output dist-average $acc)
-   (reduce (reduce (DistAverageFromSumCount $acc))))
+(= (aggregate-result-output dist-average $acc) (reduce (reduce (DistAverageFromSumCount $acc))))
 
 (= (aggregate-spec-result (aggregate-result-bare $fun $args $acc-mode) $acc)
    (CPU $fun $args (aggregate-result-output $acc-mode $acc)))
@@ -158,10 +129,7 @@
 (= (waiter-state-by-id $wid) (match &waiter_state ($wid $state) $state))
 
 (= (set-waiter-state $wid $state)
-   (progn
-      (collapse
-         (match &waiter_state ($wid $old-state)
-            (remove-atom &waiter_state ($wid $old-state))))
+   (progn (collapse (match &waiter_state ($wid $old-state) (remove-atom &waiter_state ($wid $old-state))))
       (add-atom &waiter_state ($wid $state))))
 
 (= (attach-goal-waiter $gid $wid) (add-atom &goal_waiter ($gid $wid)))
@@ -184,12 +152,28 @@
 (= (advance-frontier-bundle (and-bundle $goal (cons $prem $rest)) $pid)
    (if (= $prem (proof-output-atom $pid)) (and-bundle $goal $rest) ()))
 
-(= (advance-waiter-state-heap $agenda $_wid
-      (aggregate-waiter $_gid $_child-gid $_spec $_acc $_ev $_seen true)
+(=
+   (advance-waiter-state-heap $agenda
+      $_wid
+      (aggregate-waiter $_gid
+         $_child-gid
+         $_spec
+         $_acc
+         $_ev
+         $_seen
+         true)
       $_pid)
    $agenda)
-(= (advance-waiter-state-heap $agenda $wid
-      (aggregate-waiter $gid $child-gid $spec $acc $ev $seen false)
+(=
+   (advance-waiter-state-heap $agenda
+      $wid
+      (aggregate-waiter $gid
+         $child-gid
+         $spec
+         $acc
+         $ev
+         $seen
+         false)
       $pid)
    (let*
       (($child-atom (proof-output-atom $pid))
@@ -201,12 +185,17 @@
             (($nacc (aggregate-spec-step-acc $step-spec $acc $child-atom (proof-tv-by-id $pid)))
               ($nev (list_to_set (list-append $ev $pev)))
               ($nseen (cons $child-key $seen))
-              ($_1
-                 (set-waiter-state $wid
-                    (aggregate-waiter $gid $child-gid $spec $nacc $nev $nseen false))))
+              ($_1 (set-waiter-state $wid (aggregate-waiter $gid $child-gid $spec $nacc $nev $nseen false))))
             $agenda))))
-(= (advance-waiter-state-heap $agenda $_wid
-      (frontier-waiter $parent-gid $aid $bundle $score $seen $rev-pids)
+(=
+   (advance-waiter-state-heap $agenda
+      $_wid
+      (frontier-waiter $parent-gid
+         $aid
+         $bundle
+         $score
+         $seen
+         $rev-pids)
       $pid)
    (let*
       ((($pscore $pev) (proof-stats-by-id $pid))
@@ -231,9 +220,10 @@
         ($child-goal (aggregate-spec-child-goal $spec))
         ($child-gid (ensure-goal $child-goal))
         ($stored-spec (copy_term $spec)))
-      (spawn-waiting-goal-heap $agenda $score $child-gid
-         (aggregate-waiter
-            $gid
+      (spawn-waiting-goal-heap $agenda
+         $score
+         $child-gid
+         (aggregate-waiter $gid
             $child-gid
             $stored-spec
             (aggregate-spec-init-acc $spec)
@@ -241,23 +231,33 @@
             ()
             false))))
 
-(= (finalize-waiter-state-heap $agenda $_wid
-      (aggregate-waiter $_gid $_child-gid $_spec $_acc $_ev $_seen true))
+(=
+   (finalize-waiter-state-heap $agenda
+      $_wid
+      (aggregate-waiter $_gid
+         $_child-gid
+         $_spec
+         $_acc
+         $_ev
+         $_seen
+         true))
    $agenda)
-(= (finalize-waiter-state-heap $agenda $wid
-      (aggregate-waiter $gid $child-gid $spec $acc $ev $seen false))
+(= (finalize-waiter-state-heap $agenda $wid (aggregate-waiter $gid $child-gid $spec $acc $ev $seen false))
    (let*
       (($dep-wids
            (collapse
               (match &waiter_state
                  ($dep-wid
-                    (aggregate-waiter $child-gid $_dep-child $_dep-spec $_dep-acc $_dep-ev
-                       $_dep-seen $_dep-finalized))
+                    (aggregate-waiter $child-gid
+                       $_dep-child
+                       $_dep-spec
+                       $_dep-acc
+                       $_dep-ev
+                       $_dep-seen
+                       $_dep-finalized))
                  $dep-wid)))
         ($agenda1 (fold-flat finalize-aggregate-waiter-heap $agenda $dep-wids))
-        ($_1
-           (set-waiter-state $wid
-              (aggregate-waiter $gid $child-gid $spec $acc $ev $seen true)))
+        ($_1 (set-waiter-state $wid (aggregate-waiter $gid $child-gid $spec $acc $ev $seen true)))
         ($result (aggregate-spec-result (aggregate-spec-result-spec $spec) $acc)))
       (commit-proof-candidate-heap $agenda1
          $gid
@@ -275,14 +275,11 @@
             $wid))
       (fold-flat finalize-aggregate-waiter-heap $agenda $wids)))
 
-(= (runtime-kctx $kb)
-   (if (is-expr $kb) (let ($kbid $_ctx $_vars) $kb ($kbid MAIN Nil)) ($kb MAIN Nil)))
+(= (runtime-kctx $kb) (if (is-expr $kb) (let ($kbid $_ctx $_vars) $kb ($kbid MAIN Nil)) ($kb MAIN Nil)))
 
 (= (direct-goal-query-term $goal)
    (if (= $goal ($type ($kbid $_ctx $_vars) $prf $tv))
-      (let $qtype
-         (if (and (is-expr $type) (contains-hash? $type)) (map-nested unwrap $type)
-            $type)
+      (let $qtype (if (and (is-expr $type) (contains-hash? $type)) (map-nested unwrap $type) $type)
          ($qtype ($kbid $_ctx $_vars) $prf $tv))
       $goal))
 
@@ -299,41 +296,31 @@
 (= (expand-direct-goal-result-heap $agenda $gid $result)
    (let*
       (($score (term-confidence $result))
-       ($ev (leaf-evidence-for-result $result))
-       ($accepted (classify-goal-proof-candidate $gid $ev $score)))
-      (commit-proof-candidate-heap $agenda
-         $gid
-         $accepted
-         (leaf-result-candidate $result $ev))))
+        ($ev (leaf-evidence-for-result $result))
+        ($accepted (classify-goal-proof-candidate $gid $ev $score)))
+      (commit-proof-candidate-heap $agenda $gid $accepted (leaf-result-candidate $result $ev))))
 
 (= (direct-goal-result-exact-hit? $goal $result)
-   (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv))
-      (=? $goal $result)
-      (goal-key-eq? $goal $result)))
+   (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv)) (=? $goal $result) (goal-key-eq? $goal $result)))
 
 (= (instantiated-bundle-goal $aid $pid-list)
    (case
-      (instantiate-and-bundle
-         (copy_term (match &and_node ($aid $_parent $_rule $_bound $bundle) $bundle))
+      (instantiate-and-bundle (copy_term (match &and_node ($aid $_parent $_rule $_bound $bundle) $bundle))
          $pid-list) (
-        ((and-bundle $goal $_rest) $goal)
-        )))
+        ((and-bundle $goal $_rest) $goal))))
 
-(=
-   (build-parent-proof-heap $agenda
-      $parent-gid
-      $aid
-      (and-bundle $_goal ())
-      $score
-      $ev
-      $pid-list)
+(= (build-parent-proof-heap $agenda $parent-gid $aid (and-bundle $_goal ()) $score $ev $pid-list)
    (let*
       (($goal (instantiated-bundle-goal $aid $pid-list))
         (($_type ($_kbid $_ctx $_vars) $_prf $tv) $goal))
       (commit-proof-candidate-heap $agenda
          $parent-gid
          (classify-goal-proof-candidate $parent-gid $ev $score)
-         (proof-candidate (rule $aid $goal) (with-tv $tv) $score $ev $pid-list))))
+         (proof-candidate (rule $aid $goal)
+            (with-tv $tv)
+            $score
+            $ev
+            $pid-list))))
 
 (= (spawn-frontier-heap $agenda $parent-gid $aid $bundle $score $seen $rev-pids)
    (case $bundle (
@@ -349,8 +336,15 @@
            (let*
               (($gid (ensure-goal $prem))
                 ($stored-bundle (copy_term $bundle)))
-              (spawn-waiting-goal-heap $agenda $score $gid
-                 (frontier-waiter $parent-gid $aid $stored-bundle $score $seen $rev-pids)))))))
+              (spawn-waiting-goal-heap $agenda
+                 $score
+                 $gid
+                 (frontier-waiter $parent-gid
+                    $aid
+                    $stored-bundle
+                    $score
+                    $seen
+                    $rev-pids)))))))
 
 (= (expand-rule-goal-heap $agenda $parent-gid $goal)
    (let*
@@ -368,7 +362,13 @@
         ($bundle (copy_term (and-bundle $goal $args)))
         ($aid (next-aid))
         ($_1 (add-atom &and_node ($aid $parent-gid $rule-id $bound $bundle))))
-      (spawn-frontier-heap $agenda $parent-gid $aid $bundle $bound () ())))
+      (spawn-frontier-heap $agenda
+         $parent-gid
+         $aid
+         $bundle
+         $bound
+         ()
+         ())))
 
 (= (expand-goal-heap $agenda $steps $score $gid)
    (let $goal (goal-term-by-id $gid)
@@ -382,26 +382,20 @@
             (($_expand (add-atom &goal_expanded ($gid true)))
               ($results (collapse (direct-goal-results $steps $goal)))
               ($agenda10
-                 (fold-flat
-                    (|-> ($acc $result) (expand-direct-goal-result-heap $acc $gid $result))
+                 (fold-flat (|-> ($acc $result) (expand-direct-goal-result-heap $acc $gid $result))
                     $agenda
                     $results))
               ($agenda1 (normalize-heap $agenda10))
               ($exact-hit
-                 (fold-flat
-                    (|-> ($acc $result)
-                       (or $acc (direct-goal-result-exact-hit? $goal $result)))
+                 (fold-flat (|-> ($acc $result) (or $acc (direct-goal-result-exact-hit? $goal $result)))
                     false
                     $results))
-              ($nagenda0
-                 (if $exact-hit $agenda1
-                    (expand-rule-goal-heap $agenda1 $gid $goal)))
+              ($nagenda0 (if $exact-hit $agenda1 (expand-rule-goal-heap $agenda1 $gid $goal)))
               ($nagenda (normalize-heap $nagenda0)))
             $nagenda))))
 
 (= (search-goals-heap $steps $agenda)
-   (if (or (<= $steps 0) (== (heap_size $agenda) 0))
-      (search-state $steps $agenda)
+   (if (or (<= $steps 0) (== (heap_size $agenda) 0)) (search-state $steps $agenda)
       (let*
          (($rest (get_from_heap $agenda $_priority $item))
            ((qitem $score $gid) $item))
@@ -414,15 +408,22 @@
 
 (= (instantiate-and-bundle (and-bundle $goal ()) ()) (and-bundle $goal ()))
 (= (instantiate-and-bundle (and-bundle $goal (cons $prem $rest)) (cons $pid $pids))
-   (if (= $prem (proof-output-atom $pid))
-      (instantiate-and-bundle (and-bundle $goal $rest) $pids)
-      (empty)))
+   (if (= $prem (proof-output-atom $pid)) (instantiate-and-bundle (and-bundle $goal $rest) $pids) (empty)))
 
 (= (clear-backward-state)
    (clear-spaces
-      (() &goal_by_id &goal_lookup &goal_expanded &goal_pending_score
-         &goal_waiter &waiter_state &and_node
-         &goal_proof &proof_goal &proof_stats &proof_kind &proof_children)))
+      (() &goal_by_id
+         &goal_lookup
+         &goal_expanded
+         &goal_pending_score
+         &goal_waiter
+         &waiter_state
+         &and_node
+         &goal_proof
+         &proof_goal
+         &proof_stats
+         &proof_kind
+         &proof_children)))
 
 (= (chainer $steps $goal)
    (let*
@@ -434,9 +435,7 @@
         ($root-gid (ensure-goal $goal))
         ($agenda0 (schedule-goal-heap (empty_heap) 1.0 $root-gid))
         ((search-state $search-steps-left $agenda1)
-           (once
-              (if (<= $steps 0) (search-state 0 $agenda0)
-                 (search-goals-heap (+ $steps 1) $agenda0))))
+           (once (if (<= $steps 0) (search-state 0 $agenda0) (search-goals-heap (+ $steps 1) $agenda0))))
         ($agenda2 (once (finalize-all-aggregates-heap $agenda1)))
         ((search-state $_search-steps-left2 $_agenda3)
            (once
@@ -449,11 +448,7 @@
 (= (contains-hash? $x) (fold-nested (|-> ($acc $elem) (or (== $elem #) $acc)) false $x))
 
 (= (cpu-call $steps $fun $args)
-   (reduce
-      (reduce
-         (if (needs-steps-cpu-fun? $fun) (cons $fun (cons $steps $args))
-            (cons $fun $args)))))
+   (reduce (reduce (if (needs-steps-cpu-fun? $fun) (cons $fun (cons $steps $args)) (cons $fun $args)))))
 
 (= (foldall-eval $fun $acc ()) $acc)
-(= (foldall-eval $fun $acc (cons $elem $tail))
-   (foldall-eval $fun (eval ($fun $acc $elem)) $tail))
+(= (foldall-eval $fun $acc (cons $elem $tail)) (foldall-eval $fun (eval ($fun $acc $elem)) $tail))
