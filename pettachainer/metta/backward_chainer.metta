@@ -19,10 +19,6 @@
       (collapse (match &goal_pending_score ($gid $score) (remove-atom &goal_pending_score ($gid $score))))
       ()))
 
-(= (goal-class $goal) (goal-view-class (goal-view $goal)))
-
-(= (goal-term-has-type-vars? $goal) (goal-view-has-type-vars? (goal-view $goal)))
-
 (= (ensure-goal $goal)
    (let*
       (($stored-goal (copy_term $goal))
@@ -44,8 +40,9 @@
          (if (>= $current $score) $agenda
             (let*
                (($goal (goal-term-by-id $gid))
-                 ($closed-proof-bonus (if (goal-term-has-type-vars? $goal) 0.0 1.0))
-                 ($bonus (if (== (goal-class $goal) proof) $closed-proof-bonus 2.0))
+                 ($goal-view (goal-view $goal))
+                 ($closed-proof-bonus (if (goal-view-has-type-vars? $goal-view) 0.0 1.0))
+                 ($bonus (if (== (goal-view-class $goal-view) proof) $closed-proof-bonus 2.0))
                  ($priority (- 0 (+ (* 1000000.0 $score) $bonus)))
                  ($nagenda (add_to_heap $agenda $priority (qitem $score $gid)))
                  ($_clear (clear-goal-pending-score $gid))
@@ -53,8 +50,6 @@
                $nagenda)))))
 
 (= (needs-steps-cpu-fun? $fun) false)
-
-(= (aggregate-goal? $goal) (goal-view-is-aggregate? (goal-view $goal)))
 
 (= (aggregate-compiled-child-goal $compiled-query)
    (let*
@@ -250,8 +245,6 @@
             $wid))
       (fold-flat finalize-aggregate-waiter-heap $agenda $wids)))
 
-(= (direct-goal-query-term $goal) (goal-view-query-term (goal-view $goal)))
-
 (= (direct-goal-fact-match $goal $candidate)
    (let $goal-copy (copy_term $goal) (if (= $goal-copy $candidate) $candidate (empty))))
 
@@ -265,16 +258,14 @@
 (= (direct-goal-results $steps $goal)
    (direct-goal-results-view $steps (goal-view $goal)))
 
-(= (direct-goal-result-exact-hit? $goal $result)
-   (goal-view-exact-hit? (goal-view $goal) $result))
-
 (= (expand-direct-goal-step $gid $goal (expand-state $agenda $exact-hit) $result)
    (let*
-      (($score (term-confidence $result))
+      (($goal-view (goal-view $goal))
+        ($score (term-confidence $result))
         ($ev (leaf-evidence-for-result $result))
         ($accepted (classify-goal-proof-candidate $gid $ev $score))
         ($nagenda (commit-proof-candidate-heap $agenda $gid $accepted (leaf-result-candidate $result $ev)))
-        ($nexact-hit (or $exact-hit (direct-goal-result-exact-hit? $goal $result))))
+        ($nexact-hit (or $exact-hit (goal-view-exact-hit? $goal-view $result))))
       (expand-state $nagenda $nexact-hit)))
 
 (= (expand-direct-goal-heap $agenda $steps $gid $goal)
