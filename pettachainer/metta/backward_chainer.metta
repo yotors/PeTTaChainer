@@ -68,8 +68,6 @@
                  ($_set (add-atom &goal_pending_score ($gid $score))))
                $nagenda)))))
 
-(= (normalize-heap $agenda) (if (== $agenda ()) (empty_heap) $agenda))
-
 (= (needs-steps-cpu-fun? $fun) false)
 
 (= (aggregate-goal? $goal)
@@ -275,8 +273,6 @@
             $wid))
       (fold-flat finalize-aggregate-waiter-heap $agenda $wids)))
 
-(= (runtime-kctx $kb) (if (is-expr $kb) (let ($kbid $_ctx $_vars) $kb ($kbid MAIN Nil)) ($kb MAIN Nil)))
-
 (= (direct-goal-query-term $goal)
    (if (= $goal ($type ($kbid $_ctx $_vars) $prf $tv))
       (let $qtype (if (and (is-expr $type) (contains-hash? $type)) (map-nested unwrap $type) $type)
@@ -293,15 +289,24 @@
       (match &kb $candidate
          (direct-goal-fact-match $query-goal $candidate))))
 
-(= (expand-direct-goal-result-heap $agenda $gid $result)
+(= (direct-goal-result-exact-hit? $goal $result)
+   (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv)) (=? $goal $result) (goal-key-eq? $goal $result)))
+
+(= (expand-direct-goal-step $gid $goal (expand-state $agenda $exact-hit) $result)
    (let*
       (($score (term-confidence $result))
         ($ev (leaf-evidence-for-result $result))
-        ($accepted (classify-goal-proof-candidate $gid $ev $score)))
-      (commit-proof-candidate-heap $agenda $gid $accepted (leaf-result-candidate $result $ev))))
+        ($accepted (classify-goal-proof-candidate $gid $ev $score))
+        ($nagenda (commit-proof-candidate-heap $agenda $gid $accepted (leaf-result-candidate $result $ev)))
+        ($nexact-hit (or $exact-hit (direct-goal-result-exact-hit? $goal $result))))
+      (expand-state $nagenda $nexact-hit)))
 
-(= (direct-goal-result-exact-hit? $goal $result)
-   (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv)) (=? $goal $result) (goal-key-eq? $goal $result)))
+(= (expand-direct-goal-heap $agenda $steps $gid $goal)
+   (let*
+      (($results (collapse (direct-goal-results $steps $goal)))
+        ((expand-state $agenda1 $exact-hit)
+           (fold-flat (expand-direct-goal-step $gid $goal) (expand-state $agenda false) $results)))
+      (if $exact-hit $agenda1 (expand-rule-goal-heap $agenda1 $gid $goal))))
 
 (= (instantiated-bundle-goal $aid $pid-list)
    (case
@@ -371,28 +376,15 @@
          ())))
 
 (= (expand-goal-heap $agenda $steps $score $gid)
-   (let $goal (goal-term-by-id $gid)
-      (if (aggregate-goal? $goal)
-         (let*
-            (($_expand (add-atom &goal_expanded ($gid true)))
-              ($nagenda0 (spawn-aggregate-goal-heap $agenda $score $gid $goal))
-              ($nagenda (normalize-heap $nagenda0)))
-            $nagenda)
-         (let*
-            (($_expand (add-atom &goal_expanded ($gid true)))
-              ($results (collapse (direct-goal-results $steps $goal)))
-              ($agenda10
-                 (fold-flat (|-> ($acc $result) (expand-direct-goal-result-heap $acc $gid $result))
-                    $agenda
-                    $results))
-              ($agenda1 (normalize-heap $agenda10))
-              ($exact-hit
-                 (fold-flat (|-> ($acc $result) (or $acc (direct-goal-result-exact-hit? $goal $result)))
-                    false
-                    $results))
-              ($nagenda0 (if $exact-hit $agenda1 (expand-rule-goal-heap $agenda1 $gid $goal)))
-              ($nagenda (normalize-heap $nagenda0)))
-            $nagenda))))
+   (let*
+      (($goal (goal-term-by-id $gid))
+        ($_expand (add-atom &goal_expanded ($gid true)))
+        ($nagenda0
+           (if (aggregate-goal? $goal)
+              (spawn-aggregate-goal-heap $agenda $score $gid $goal)
+              (expand-direct-goal-heap $agenda $steps $gid $goal)))
+        ($nagenda (if (== $nagenda0 ()) (empty_heap) $nagenda0)))
+      $nagenda))
 
 (= (search-goals-heap $steps $agenda)
    (if (or (<= $steps 0) (== (heap_size $agenda) 0)) (search-state $steps $agenda)
