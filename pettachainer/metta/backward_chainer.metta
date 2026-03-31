@@ -5,12 +5,15 @@
 (= (goal-pending-score-of $gid)
    (first-or (collapse (once (match &goal_pending_score ($gid $score) $score))) 0.0))
 
+(= (goal-depth-of $gid)
+   (first-or (collapse (once (match &goal_depth ($gid $depth) $depth))) 0))
+
 (= (clear-goal-pending-score $gid)
    (progn
       (collapse (match &goal_pending_score ($gid $score) (remove-atom &goal_pending_score ($gid $score))))
       ()))
 
-(= (ensure-goal $goal)
+(= (ensure-goal-at-depth $goal $depth)
    (let*
       (($stored-goal (copy_term $goal))
         ($goal-key (goal-view-key (goal-view $stored-goal)))
@@ -19,14 +22,18 @@
          (let*
             (($gid (next-gid))
               ($_1 (add-atom &goal_by_id ($gid $stored-goal)))
+              ($_depth (add-atom &goal_depth ($gid $depth)))
               ($_2 (add-atom &goal_lookup ($goal-key $gid))))
             $gid)
          (car-atom $hits))))
 
+(= (ensure-goal $goal) (ensure-goal-at-depth $goal 0))
+
 (= (schedule-goal-heap $agenda $score $gid)
    (let*
       (($expanded (goal-expanded? $gid))
-        ($current (goal-pending-score-of $gid)))
+        ($current (goal-pending-score-of $gid))
+        ($depth (goal-depth-of $gid)))
       (if $expanded $agenda
          (if (>= $current $score) $agenda
             (let*
@@ -34,7 +41,7 @@
                  ($goal-view (goal-view $goal))
                  ($closed-proof-bonus (if (goal-view-has-type-vars? $goal-view) 0.0 1.0))
                  ($bonus (if (= $goal-view (proof-goal $_kb $_type $_prf $_tv)) $closed-proof-bonus 2.0))
-                 ($priority (- 0 (+ (* 1000000.0 $score) $bonus)))
+                 ($priority (+ (* 1000000000.0 $depth) (- 0 (+ (* 1000000.0 $score) $bonus))))
                  ($nagenda (add_to_heap $agenda $priority (qitem $score $gid)))
                  ($_clear (clear-goal-pending-score $gid))
                  ($_set (add-atom &goal_pending_score ($gid $score))))
@@ -166,7 +173,7 @@
    (let*
       (($spec (aggregate-goal-spec $goal-view))
         ((aggregate-spec $child-goal $init-acc $_step-spec $_result-spec) $spec)
-        ($child-gid (ensure-goal $child-goal))
+        ($child-gid (ensure-goal-at-depth $child-goal (+ 1 (goal-depth-of $gid))))
         ($stored-spec (copy_term $spec)))
       (spawn-waiting-goal-heap $agenda
          $score
@@ -269,7 +276,7 @@
                     $pid-list))))
         ((and-bundle $_goal (cons $prem $_rest))
            (let*
-              (($gid (ensure-goal $prem))
+              (($gid (ensure-goal-at-depth $prem (+ 1 (goal-depth-of $parent-gid))))
                 ($stored-bundle (copy_term $bundle)))
               (spawn-waiting-goal-heap $agenda
                  $score
@@ -338,6 +345,7 @@
       (foreach-flat remove-all-atoms
          (() &goal_by_id
             &goal_lookup
+            &goal_depth
             &goal_expanded
             &goal_pending_score
             &goal_waiter
