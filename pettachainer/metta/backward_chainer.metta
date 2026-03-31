@@ -1,4 +1,4 @@
-(= (goal-term-by-id $gid) (match &goal_by_id ($gid $goal) $goal))
+(= (goal-term-by-id $gid) (match &goal_by_id ($gid $_depth $goal) $goal))
 
 (= (goal-expanded? $gid) (first-or (collapse (once (match &goal_expanded ($gid true) true))) false))
 
@@ -6,7 +6,7 @@
    (first-or (collapse (once (match &goal_pending_score ($gid $score) $score))) 0.0))
 
 (= (goal-depth-of $gid)
-   (first-or (collapse (once (match &goal_depth ($gid $depth) $depth))) 0))
+   (first-or (collapse (once (match &goal_by_id ($gid $depth $_goal) $depth))) 0))
 
 (= (clear-goal-pending-score $gid)
    (progn
@@ -21,8 +21,7 @@
       (if (== $hits ())
          (let*
             (($gid (next-gid))
-              ($_1 (add-atom &goal_by_id ($gid $stored-goal)))
-              ($_depth (add-atom &goal_depth ($gid $depth)))
+              ($_1 (add-atom &goal_by_id ($gid $depth $stored-goal)))
               ($_2 (add-atom &goal_lookup ($goal-key $gid))))
             $gid)
          (car-atom $hits))))
@@ -345,7 +344,6 @@
       (foreach-flat remove-all-atoms
          (() &goal_by_id
             &goal_lookup
-            &goal_depth
             &goal_expanded
             &goal_pending_score
             &goal_waiter

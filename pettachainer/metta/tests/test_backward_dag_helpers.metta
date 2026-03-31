@@ -47,7 +47,7 @@
         ($_gidreset (change-state! bwd_gid 0))
         ($g1 (ensure-goal ((LoopGoal $x) (kb MAIN ()) p1 (STV 1.0 1.0))))
         ($g2 (ensure-goal ((LoopGoal $y) (kb MAIN ()) p2 (STV 1.0 0.3)))))
-      (cons $g1 (cons $g2 (collapse (match &goal_by_id ($gid $_goal) $gid)))))
+      (cons $g1 (cons $g2 (collapse (match &goal_by_id ($gid $_depth $_goal) $gid)))))
    (0 0 0))
 
 !(test
