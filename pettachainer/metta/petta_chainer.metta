@@ -11,12 +11,6 @@
 !(import! &self backward_proof_store)
 !(import! &self backward_chainer)
 
-(= (nextid)
-   (let*
-      (($mn (catch (get-state ruleid)))
-        ($n (if-error $mn 0 $mn)))
-      (progn (change-state! ruleid (+ $n 1)) $n)))
-
 (= (add-prem $vars $id $idx $prem)
    (let $key (forward-indexable-premise-key $prem)
       (progn (if (== $key ()) () (add-atom prem_index ($key $prem $id $idx)))
@@ -26,7 +20,7 @@
    (if (= $expr (rules ($args |- $ccls)))
       (let*
          (($vars (extract-vars $expr))
-           ($id (nextid))
+           ($id (next-search-id ruleid))
            ($_1 (fold-flat (add-prem $vars $id) 0 $args))
            ($_2 (add-atom ccls_index ($ccls $id)))
            ($_3 (add-atom rules ($id $ccls $args)))
@@ -39,13 +33,8 @@
       (if (is-expr $term)
          (if (== (car-atom $term) |->)
             (eval $term)
-            (cons (materialize-stmt-lambdas (car-atom $term))
-               (materialize-stmt-lambdas-list (cdr-atom $term))))
+            (cons (materialize-stmt-lambdas (car-atom $term)) (map-flat materialize-stmt-lambdas (cdr-atom $term))))
          $term)))
-
-(= (materialize-stmt-lambdas-list ()) ())
-(= (materialize-stmt-lambdas-list (cons $head $tail))
-   (cons (materialize-stmt-lambdas $head) (materialize-stmt-lambdas-list $tail)))
 
 (= (compileadd $kb $stmt)
    (let*

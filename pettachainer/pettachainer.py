@@ -21,9 +21,7 @@ LOADED_LOCK = threading.Lock()
 
 
 def get_language_spec(llm_focused: bool = True) -> str:
-    base_dir = Path(__file__).resolve().parent
-    spec_name = "LLM_RULE_SPEC.md" if llm_focused else "LANGUAGE_SPEC.md"
-    return (base_dir / spec_name).read_text(encoding="utf-8")
+    return (Path(__file__).resolve().parent / ("LLM_RULE_SPEC.md" if llm_focused else "LANGUAGE_SPEC.md")).read_text(encoding="utf-8")
 
 
 def _query_worker(handler: PeTTa, kb: str, steps: int, atom: str, conn):
@@ -38,14 +36,6 @@ def _query_worker(handler: PeTTa, kb: str, steps: int, atom: str, conn):
 
 def _as_list(value) -> List[str]:
     return [value] if isinstance(value, str) else value
-
-
-def _first_result(value):
-    if not isinstance(value, list):
-        return value
-    if value:
-        return value[0]
-    raise ValueError("PeTTa returned no results")
 
 
 class PeTTaChainer:
@@ -66,7 +56,12 @@ class PeTTaChainer:
             LOADEDLIB = True
 
     def _evaluate(self, atom: str) -> str:
-        return str(_first_result(self.handler.process_metta_string(f"!(eval {atom})"))).strip()
+        result = self.handler.process_metta_string(f"!(eval {atom})")
+        if isinstance(result, list):
+            if not result:
+                raise ValueError("PeTTa returned no results")
+            result = result[0]
+        return str(result).strip()
 
     @staticmethod
     def _validate(kind: str, raw_atom: str, evaluated_atom: str, checker) -> None:
@@ -86,15 +81,11 @@ class PeTTaChainer:
             f"!(superpose ({' '.join(adds)}))"
         )
 
-    def evaluate_statement(self, atom: str) -> str:
-        return self._evaluate(atom)
-
-    def evaluate_query(self, atom: str) -> str:
-        return self._evaluate(atom)
+    evaluate_statement = _evaluate
+    evaluate_query = _evaluate
 
     def print_kb(self):
-        atoms = self.handler.process_metta_string(f"!(match &kb $a (pretty $a))")
-        for atom in _as_list(atoms):
+        for atom in _as_list(self.handler.process_metta_string(f"!(match &kb $a (pretty $a))")):
             print(atom)
 
     def query(self, atom: str, steps: int = 100, timeout_sec: Optional[float] = 10) -> List[str]:
@@ -135,9 +126,7 @@ class PeTTaChainer:
         finally:
             parent_conn.close()
 
-    @staticmethod
-    def language_spec(llm_focused: bool = True) -> str:
-        return get_language_spec(llm_focused=llm_focused)
+    language_spec = staticmethod(get_language_spec)
 
 
 if __name__ == "__main__":

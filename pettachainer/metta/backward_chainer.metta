@@ -3,13 +3,9 @@
 (= (first-or () $default) $default)
 (= (first-or (cons $x $_rest) $_default) $x)
 
-(= (nonempty? ()) false)
-(= (nonempty? (cons $_ $_rest)) true)
+(= (clear-spaces $spaces) (progn (foreach-flat remove-all-atoms $spaces) ()))
 
-(= (clear-spaces ()) ())
-(= (clear-spaces (cons $space $rest)) (let $_ (remove-all-atoms $space) (clear-spaces $rest)))
-
-(= (goal-expanded? $gid) (nonempty? (collapse (once (match &goal_expanded ($gid true) true)))))
+(= (goal-expanded? $gid) (first-or (collapse (once (match &goal_expanded ($gid true) true))) false))
 
 (= (goal-pending-score-of $gid)
    (first-or (collapse (once (match &goal_pending_score ($gid $score) $score))) 0.0))
@@ -248,8 +244,6 @@
       (let $qtype (if (contains-hash? $type) (map-nested (|-> ($x) (if (== $x #) $any $x)) $type) $type)
       (match &kb ($qtype $kb $prf $tv)($qtype $kb $prf $tv))))
 
-(= (direct-goal-results $steps $goal) (direct-goal-results-view $steps (goal-view $goal)))
-
 (= (direct-result-exact-hit (proof-goal $kb $type $prf $tv) $result) (=? ($type $kb $prf $tv) $result))
 (= (direct-result-exact-hit (cpu-goal $fun $args $res) $result) (goal-key-eq? (CPU $fun $args $res) $result))
 
@@ -265,7 +259,7 @@
 
 (= (expand-direct-goal-heap $agenda $steps $gid $goal)
    (let*
-      (($results (collapse (direct-goal-results $steps $goal)))
+      (($results (collapse (direct-goal-results-view $steps (goal-view $goal))))
         ((expand-state $agenda1 $exact-hit)
            (fold-flat (expand-direct-goal-step $gid $goal) (expand-state $agenda false) $results)))
       (if $exact-hit $agenda1 (expand-rule-goal-heap $agenda1 $gid $goal))))
