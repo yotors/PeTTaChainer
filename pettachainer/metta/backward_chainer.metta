@@ -43,8 +43,6 @@
         ((rule $aid $term) (proof-output-term $pid $term))
         ($other (empty)))))
 
-(= (proof-unify-term $pid) (proof-output-atom $pid))
-
 (= (materialize-proof-refs $term)
    (if (= $term (proof-ref $pid)) (materialize-proof-refs (materialize-proof $pid))
       (if (is-expr $term)
@@ -410,11 +408,9 @@
             (match &proof_children ($pid $kids)
                $kids)))))
 
-(= (proof-depends-on-goal? $pid $gid) (proof-depends-on-goal-seen? $pid $gid ()))
-
 (= (candidate-is-cyclic? $gid ()) false)
 (= (candidate-is-cyclic? $gid (cons $pid $pids))
-   (or (proof-depends-on-goal? $pid $gid) (candidate-is-cyclic? $gid $pids)))
+   (or (proof-depends-on-goal-seen? $pid $gid ()) (candidate-is-cyclic? $gid $pids)))
 
 (=
    (commit-proof-candidate-heap $agenda
@@ -453,10 +449,10 @@
 (= (expand-direct-goal-result-heap $agenda $gid $result)
    (let*
       (($score (term-confidence $result))
-        ($ev (leaf-evidence-for-result $result))
-        ($accepted (classify-goal-proof-candidate $gid $ev $score))
-        ($tv-state
-           (if (= $result ($_type ($_kbid $_ctx $_vars) $prf $tv)) (with-tv $tv) no-tv)))
+       ($ev (leaf-evidence-for-result $result))
+       ($accepted (classify-goal-proof-candidate $gid $ev $score))
+       ($tv-state
+          (if (= $result ($_type ($_kbid $_ctx $_vars) $prf $tv)) (with-tv $tv) no-tv)))
       (commit-proof-candidate-heap $agenda
          $gid
          $accepted
@@ -464,7 +460,7 @@
 
 (= (direct-goal-result-exact-hit? $goal $result)
    (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv))
-      (let $goal-copy (copy_term $goal) (if (= $goal-copy $result) true false))
+      (if (=? $goal-copy $result) true false)
       (goal-key-eq? $goal $result)))
 
 (= (instantiated-bundle-goal $aid $pid-list)
@@ -521,7 +517,7 @@
 
 (= (advance-frontier-bundle (and-bundle $_goal ()) $_pid) ())
 (= (advance-frontier-bundle (and-bundle $goal (cons $prem $rest)) $pid)
-   (if (= $prem (proof-unify-term $pid)) (and-bundle $goal $rest) ()))
+   (if (= $prem (proof-output-atom $pid)) (and-bundle $goal $rest) ()))
 
 (= (advance-frontier-heap $agenda $fid $pid)
    (let*
@@ -602,7 +598,7 @@
 
 (= (instantiate-and-bundle (and-bundle $goal ()) ()) (and-bundle $goal ()))
 (= (instantiate-and-bundle (and-bundle $goal (cons $prem $rest)) (cons $pid $pids))
-   (if (= $prem (proof-unify-term $pid))
+   (if (= $prem (proof-output-atom $pid))
       (instantiate-and-bundle (and-bundle $goal $rest) $pids)
       (empty)))
 
@@ -635,15 +631,7 @@
 
 (= (unwrap $x) (if (== $x #) $any $x))
 
-(= (contains-hash? $x)
-   (if (== $x #) true (if (is-expr $x) (contains-hash-expr $x) false)))
-
-(= (contains-hash-expr $expr)
-   (or (== (car-atom $expr) #) (contains-hash-list (cdr-atom $expr))))
-
-(= (contains-hash-list ()) false)
-(= (contains-hash-list (cons $head $tail))
-   (or (contains-hash? $head) (contains-hash-list $tail)))
+(= (contains-hash? $x) (fold-nested (|-> ($acc $elem) (or (== $elem #) $acc)) false $x))
 
 (= (cpu-call $steps $fun $args)
    (reduce
@@ -661,13 +649,9 @@
         ($_ (callPredicate (Predicate (assertz $term $ref)))))
       $ref))
 
-(= (erase-clause-ref $ref)
-   (callPredicate (Predicate (erase $ref))))
+(= (erase-clause-ref $ref) (callPredicate (Predicate (erase $ref))))
 
-(= (track-temp-query-ref $ref)
-   (add-atom &temp_query_ref (clause_ref $ref)))
-
-(= (temp-query-rule-id $id) (temp_query_rule $id))
+(= (track-temp-query-ref $ref) (add-atom &temp_query_ref (clause_ref $ref)))
 
 (= (temp-add-prem $id $idx $prem)
    (let $key (forward-indexable-premise-key $prem)
@@ -682,8 +666,7 @@
 (= (temp-add-to-kb $expr)
    (if (= $expr (rules ($args |- $ccls)))
       (let*
-         (($raw-id (nextid))
-           ($id (temp-query-rule-id $raw-id))
+         (($id (nextid))
            ($_1 (fold-flat (temp-add-prem $id) 0 $args))
            ($ccls-ref (assert-space-atom-ref ccls_index ($ccls $id)))
            ($_2 (track-temp-query-ref $ccls-ref))

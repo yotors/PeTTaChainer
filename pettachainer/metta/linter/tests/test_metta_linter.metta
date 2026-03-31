@@ -2,7 +2,7 @@
 
 !(test
    (lint-file-warning-count "tests/fixtures/lint_sample.metta")
-   5)
+   9)
 
 !(test
    (lint-file-has-warning
@@ -44,6 +44,42 @@
    (lint-file-has-warning
       "tests/fixtures/lint_sample.metta"
       (quote (warning 26 manual-fold-flat-append-recursion lint-manual-append-list (= (lint-manual-append-list (cons $x $xs)) (append (WarningsFor $x) (lint-manual-append-list $xs))))))
+   true)
+
+!(test
+   (lint-file-has-warning
+      "tests/fixtures/lint_sample.metta"
+      (quote (warning 31 manual-fold-nested-recursion lint-contains-mark? (= (lint-contains-mark? $x) (if (== $x mark) true (if (is-expr $x) (lint-contains-mark-expr $x) false))))))
+   true)
+
+!(test
+   (lint-file-has-warning
+      "tests/fixtures/lint_sample.metta"
+      (quote (warning 42 trivial-forwarding-wrapper test (= (test $x) (what $x)))))
+   true)
+
+!(test
+   (lint-file-has-warning
+      "tests/fixtures/lint_sample.metta"
+      (quote (warning 44 singleton-case-option (lint-single-case $x) (case $x (((Value $y) (Wrap $y)))))))
+   true)
+
+!(test
+   (lint-file-has-warning
+      "tests/fixtures/lint_sample.metta"
+      (quote (warning 48 default-case-option (lint-default-case $x) (case $x (((Value $y) (Wrap $y)) ($other $other))))))
+   true)
+
+!(test
+   (lint-file-has-fix
+      "tests/fixtures/lint_sample.metta"
+      (quote (fix 44 singleton-case-option (lint-single-case $x) (case $x (((Value $y) (Wrap $y)))) (let (Value $y) $x (Wrap $y)))))
+   true)
+
+!(test
+   (lint-file-has-fix
+      "tests/fixtures/lint_sample.metta"
+      (quote (fix 48 default-case-option (lint-default-case $x) (case $x (((Value $y) (Wrap $y)) ($other $other))) (if (= $x (Value $y)) (let (Value $y) $x (Wrap $y)) (let $other $x $other)))))
    true)
 
 !(test

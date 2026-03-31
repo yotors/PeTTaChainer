@@ -28,6 +28,28 @@
 (= (lint-manual-append-list (cons $x $xs))
    (append (WarningsFor $x) (lint-manual-append-list $xs)))
 
+(= (lint-contains-mark? $x)
+   (if (== $x mark) true
+      (if (is-expr $x) (lint-contains-mark-expr $x) false)))
+
+(= (lint-contains-mark-expr $expr)
+   (or (== (car-atom $expr) mark) (lint-contains-mark-list (cdr-atom $expr))))
+
+(= (lint-contains-mark-list ()) false)
+(= (lint-contains-mark-list (cons $head $tail))
+   (or (lint-contains-mark? $head) (lint-contains-mark-list $tail)))
+
+(= (test $x) (what $x))
+
+(= (lint-single-case $x)
+   (case $x (
+      ((Value $y) (Wrap $y)))))
+
+(= (lint-default-case $x)
+   (case $x (
+      ((Value $y) (Wrap $y))
+      ($other $other))))
+
 (= (lint-clean)
    (let* (($x 1)
           ($y 2))
