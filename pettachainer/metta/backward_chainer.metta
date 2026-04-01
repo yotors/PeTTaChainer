@@ -75,7 +75,7 @@
 
 (= (advance-goal-waiter-heap $agenda (@ $waiter (head frontier-waiter)) $pid)
    (advance-frontier-waiter-heap $agenda $waiter $pid))
-(= (advance-goal-waiter-heap $agenda (aggregate-waiter $_parent-gid $_args) $_pid) $agenda)
+(= (advance-goal-waiter-heap $agenda (head aggregate-waiter) $_pid) $agenda)
 
 (= (spawn-frontier-goal-heap $agenda $score $gid $waiter)
    (let*
