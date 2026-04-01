@@ -68,11 +68,17 @@
                (list_to_set (append $seen $pev))
                (cons $pid $rev-pids))))))
 
+(= (advance-goal-waiter-heap $agenda (frontier-waiter $parent-gid $rule-id $bundle $score $seen $rev-pids) $pid)
+   (advance-frontier-waiter-heap $agenda
+      (frontier-waiter $parent-gid $rule-id $bundle $score $seen $rev-pids)
+      $pid))
+(= (advance-goal-waiter-heap $agenda (aggregate-waiter $_parent-gid $_args) $_pid) $agenda)
+
 (= (spawn-frontier-goal-heap $agenda $score $gid $waiter)
    (let*
       (($_1 (add-atom &goal_waiter ($gid $waiter)))
         ($agenda1
-           (fold-flat (|-> ($acc $pid) (advance-frontier-waiter-heap $acc $waiter $pid))
+           (fold-flat (|-> ($acc $pid) (advance-goal-waiter-heap $acc $waiter $pid))
               $agenda
               (collapse (match &proof ($pid $gid $_output $_kind $_score $_ev $_children) $pid))))
         ($nagenda (schedule-goal-heap $agenda1 $score $gid)))
@@ -85,7 +91,7 @@
         (($depth $_goal $_expanded $_pending) (goal-by-id $gid))
         ($child-gid (ensure-goal-at-depth $child-goal (+ 1 $depth))))
       (let*
-         (($_1 (add-atom &aggregate_waiter ($gid $child-gid $args)))
+         (($_1 (add-atom &goal_waiter ($child-gid (aggregate-waiter $gid $args))))
            ($nagenda (schedule-goal-heap $agenda $score $child-gid)))
          $nagenda)))
 
@@ -116,17 +122,18 @@
          (collapse (match &proof ($pid $child-gid $_output $_kind $_score $_ev $_children) $pid)))))
 
 (= (finalize-aggregate-goal-heap $agenda $gid $child-gid $args)
-   (if (== (collapse (once (match &aggregate_waiter ($gid $child-gid $args) true))) ())
+   (if (== (collapse (once (match &goal_waiter ($child-gid (aggregate-waiter $gid $args)) true))) ())
       $agenda
       (let*
          (($deps
               (collapse
-                 (match &aggregate_waiter ($child-gid $dep-child $dep-args) ($child-gid $dep-child $dep-args))))
+                 (match &goal_waiter ($dep-child (aggregate-waiter $child-gid $dep-args))
+                    ($child-gid $dep-child $dep-args))))
            ($agenda1 (fold-flat finalize-aggregate-entry-heap $agenda $deps))
            ($_remove
               (collapse
-                 (match &aggregate_waiter ($gid $child-gid $args)
-                    (remove-atom &aggregate_waiter ($gid $child-gid $args)))))
+                 (match &goal_waiter ($child-gid (aggregate-waiter $gid $args))
+                    (remove-atom &goal_waiter ($child-gid (aggregate-waiter $gid $args))))))
            ((aggregate-state $acc $ev $_seen) (aggregate-final-state $child-gid $args))
            (($kb $pattern $extractor $init $fun $finish $tv-mode) $args)
            ($result (CPU FoldAllCompiled $args (aggregate-finish $finish $acc))))
@@ -142,7 +149,7 @@
 (= (finalize-all-aggregates-heap $agenda)
    (fold-flat finalize-aggregate-entry-heap $agenda
       (collapse
-         (match &aggregate_waiter ($gid $child-gid $args) ($gid $child-gid $args)))))
+         (match &goal_waiter ($child-gid (aggregate-waiter $gid $args)) ($gid $child-gid $args)))))
 
 (= (direct-goal-results-view $steps (CPU $fun $args $_res))
    (CPU $fun $args (cpu-call $steps $fun $args)))
@@ -254,7 +261,6 @@
          (() &goal
             &goal_lookup
             &goal_waiter
-            &aggregate_waiter
             &proof))
       ()))
 

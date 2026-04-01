@@ -107,9 +107,9 @@
          $score
          $ev
          $children))
-   (if (== $accepted false) $agenda
+      (if (== $accepted false) $agenda
       (if (candidate-is-cyclic? $gid $children) $agenda
          (let $pid (store-proof-candidate $gid (proof-candidate $kind $score $ev $children))
-            (fold-flat (|-> ($acc $waiter) (advance-frontier-waiter-heap $acc $waiter $pid))
+            (fold-flat (|-> ($acc $waiter) (advance-goal-waiter-heap $acc $waiter $pid))
                $agenda
                (collapse (match &goal_waiter ($gid $waiter) $waiter)))))))
