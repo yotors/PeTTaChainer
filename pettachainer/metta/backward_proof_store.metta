@@ -1,11 +1,11 @@
+(= (normalize-proof-output-atom-kind $term $pid)
+   (if (= $term ($type ($kbid $_ctx $_vars) $_prf $tv))
+      ($type ($kbid $_ctx $_vars) (proof-ref $pid) $tv)
+      $term))
 (= (proof-output-atom-kind (leaf $term) $pid)
-   (if (= $term ($type ($kbid $_ctx $_vars) $_prf $tv))
-      ($type ($kbid $_ctx $_vars) (proof-ref $pid) $tv)
-      $term))
+   (normalize-proof-output-atom-kind $term $pid))
 (= (proof-output-atom-kind (rule $_rule-id $term) $pid)
-   (if (= $term ($type ($kbid $_ctx $_vars) $_prf $tv))
-      ($type ($kbid $_ctx $_vars) (proof-ref $pid) $tv)
-      $term))
+   (normalize-proof-output-atom-kind $term $pid))
 
 (= (proof-output-atom $pid) (match &proof ($pid $_gid $output $_kind $_score $_ev $_children) $output))
 
