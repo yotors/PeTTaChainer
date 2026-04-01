@@ -15,15 +15,6 @@
 (= (kb-add-atom temp $space $expr)
    (track-temp-query-ref (assert-space-atom-ref $space $expr)))
 
-(= (kb-next-rule-id live) (next-search-id ruleid))
-(= (kb-next-rule-id temp) (next-search-id bwd_tmp_ruleid))
-
-(= (kb-after-add-rule live $args $ccls) (forward-register-added-rule $args $ccls))
-(= (kb-after-add-rule temp $_args $_ccls) ())
-
-(= (kb-after-add-expr live $expr) (forward-register-added-expr $expr))
-(= (kb-after-add-expr temp $_expr) ())
-
 (= (kb-add-prem $backend $id $idx $prem)
    (let $key (forward-indexable-premise-key $prem)
       (progn
@@ -33,15 +24,13 @@
 (= (kb-add-expr $backend $expr)
    (if (= $expr (rules ($args |- $ccls)))
       (let*
-         (($id (kb-next-rule-id $backend))
+         (($id (if (== $backend live) (next-search-id ruleid) (next-search-id bwd_tmp_ruleid)))
            ($_1 (fold-flat (kb-add-prem $backend $id) 0 $args))
            ($_2 (kb-add-atom $backend ccls_index ($ccls $id)))
            ($_3 (kb-add-atom $backend rules ($id $ccls $args)))
-           ($_4 (kb-after-add-rule $backend $args $ccls)))
+           ($_4 (if (== $backend live) (forward-register-added-rule $args $ccls) ())))
          ())
-      (progn (kb-add-atom $backend &kb $expr) (kb-after-add-expr $backend $expr))))
-
-(= (temp-add-to-kb $expr) (kb-add-expr temp $expr))
+      (progn (kb-add-atom $backend &kb $expr) (if (== $backend live) (forward-register-added-expr $expr) ()))))
 
 (= (clear-temp-query-adds)
    (progn

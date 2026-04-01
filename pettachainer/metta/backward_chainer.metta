@@ -20,7 +20,8 @@
          (if (>= $current $score) $agenda
             (let*
                (($closed-proof-bonus (if (goal-has-type-vars? $goal) 0.0 1.0))
-                 ($bonus (if (goal-is-proof? $goal) $closed-proof-bonus 2.0))
+                 ($bonus
+                    (if (= $goal ($_type ($_kbid $_ctx $_vars) $_prf $_tv)) $closed-proof-bonus 2.0))
                  ($priority (+ (* 1000000000.0 $depth) (- 0 (+ (* 1000000.0 $score) $bonus))))
                  ($nagenda (add_to_heap $agenda $priority (qitem $score $gid)))
                  ($_set

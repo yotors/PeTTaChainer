@@ -11,9 +11,6 @@
 (= (goal-key (CPU $fun $args $res))
    (sealed (extract-vars (CPU $fun $args $res)) (CPU $fun $args $res)))
 
-(= (goal-is-proof? ($type ($_kbid $_ctx $_vars) $_prf $_tv)) true)
-(= (goal-is-proof? (CPU $_fun $_args $_res)) false)
-
 (= (normalize-expected-tv $tv)
    (if (is-var $tv) (STV 1.0 1.0)
       (if (= $tv (STV $s $c)) (STV (if (is-var $s) 1.0 $s) (if (is-var $c) 1.0 $c)) $tv)))
