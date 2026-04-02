@@ -74,8 +74,9 @@
       (: $kb (cons $prfelem $cclprf) (cons $elem $ccltype) $ntv)))
 (= (exec-goal-type (CPU $f $args $res)) (CPU $f $args $res))
 (= (exec-goal-type (: $_kb $_prf $elem $_tv)) $elem)
+(= (execs-goal-type $execs) (seq2expr (map-flat exec-goal-type $execs)))
 (= (bundle-from-execs $execs $result-tv $proof)
-   (premise-bundle (map-flat exec-goal-type $execs) $execs $result-tv $proof))
+   (premise-bundle $execs $result-tv $proof))
 (= (compound-premise-bundle $kb $ctx $vars $head $tail)
    (let*
       (((cons (@ $fst (prem $fstgoal $fstelem $fsttv $fstprf)) $rst) (map-flat (in_map $kb) $tail))
@@ -87,24 +88,24 @@
 (= (compound-source? (cons $head $_tail))
    (and (not (is-var $head)) (is-member $head (And Or LikelierThan))))
 (= (compound-source? $_type) false)
-(= (compile-adapter-chain plain (: $kb $prf (cons $head $tail) $tv))
-   (if (and (not (is-var $head)) (is-member $head (And Or LikelierThan)))
+(= (compile-adapter-chain plain (: $kb $prf (@ $type (cons $head $tail)) $tv))
+   (if (compound-source? $type)
       (let*
-((
-            (premise-bundle $exec-types $execs $result-tv $proof-token)
-            (compound-premise-bundle $kb $ctx $vars $head $tail)))
+         (((premise-bundle $execs $result-tv $proof-token)
+             (compound-premise-bundle $kb $ctx $vars $head $tail))
+           ($exec-type (execs-goal-type $execs)))
          (superpose
-            (($execs |- ((: $kb $proof-token (cons $head $tail) $result-tv)))
-             (if (== (seq2expr $exec-types) (cons $head $tail)) (empty)
-                (compile-adapter-chain plain (: $kb $prfa (seq2expr $exec-types) $atv))))))
+            (($execs |- ((: $kb $proof-token $type $result-tv)))
+             (if (== $exec-type $type) (empty)
+                (compile-adapter-chain plain (: $kb $prfa $exec-type $atv))))))
       (empty)))
 (= (compile-adapter-chain plain (: $_kb $_prf $_type $_tv)) (empty))
 (= (compile-adapter-chain query (: $kb $prf $type $tv))
    (if (compound-source? $type) (compile-adapter-chain plain (: $kb $prf $type $tv))
       (let*
-         (((premise-bundle $exec-types $execs $result-tv $proof-token)
+         (((premise-bundle $execs $result-tv $proof-token)
               (once (lower-source-premise $kb $ctx $vars $type)))
-           ($exec-type (seq2expr $exec-types)))
+           ($exec-type (execs-goal-type $execs)))
          (if (and (not (is-var $type)) (not (== $exec-type $type)))
             (superpose
                (($execs |- ((: $kb ($prf $proof-token) $type $result-tv)))
@@ -179,7 +180,7 @@
 
 (= (append-premise-bundle
       (compiled-premises $current-execs $current-proofs $current-tv)
-      (premise-bundle $_exec-types $execs $tv $proof))
+      (premise-bundle $execs $tv $proof))
    (if (== $current-execs ()) (compiled-premises $execs ($proof) $tv)
       (compiled-premises
          (append $current-execs (append $execs ((CPU AndFormula ($current-tv $tv) $next-tv))))
@@ -198,7 +199,7 @@
    (let*
       (((compiled-premises $execs $proofs $atv) (once (lower-source-premises $kb $ctx $vars $premises)))
        ($shape-kb ($kb $ctx $vars))
-       ($a (seq2expr (map-flat exec-goal-type $execs)))
+       ($a (execs-goal-type $execs))
        ($b (seq2expr $conclusions))
        ($nb (skolemize $prf $a $b))
        ($na (skolemize $prf $b $a))
