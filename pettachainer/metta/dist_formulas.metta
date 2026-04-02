@@ -6,9 +6,9 @@
    (let $mn (catch (get-state particleid))
       (let $n (if-error $mn 0 $mn) (progn (change-state! particleid (+ $n 1)) $n))))
 
-(= (particle-dist-id $pd) (case $pd (((ParticleDist $pid $_scale) $pid) ((ParticleDist $pid) $pid))))
+(= (particle-dist-id $pd) (case $pd (((ParticleDist $pid $_scale) $pid))))
 
-(= (particle-dist-scale $pd) (case $pd (((ParticleDist $_pid $scale) $scale) ((ParticleDist $_pid) 1.0))))
+(= (particle-dist-scale $pd) (case $pd (((ParticleDist $_pid $scale) $scale))))
 
 (= (particle-fetch-pairs $pid) (collapse (match &particle_store (particle $pid $x $w) ($x $w))))
 
@@ -33,8 +33,11 @@
       (($keep
            (list_to_set
               (collapse
-                 (match &kb (: $_kb $_prf $_type $tv)
-                    (if (= $tv (ParticleDist $pid $scale)) $pid (if (= $tv (ParticleDist $pid)) $pid (empty)))))))
+                 (match &kb
+                    (: $_kb $_prf $_type $tv)
+                    (if (= $tv (ParticleDist $pid $scale))
+                       $pid
+                       (empty))))))
         ($atoms (collapse (match &particle_store (particle $pid $x $w) ($pid $x $w))))
         ($_pruned
            (fold-flat

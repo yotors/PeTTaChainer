@@ -1,8 +1,6 @@
 (= (MpFormula (STV $abs $abc) (STV $as $ac)) (STV (* $abs $as) (* 0.9 (min $abc $ac))))
 (= (MpFormula (STV $abs $abc) (ParticleDist $pid $scale))
    (ParticleDist $pid (* $scale (tv-probability (STV $abs $abc)))))
-(= (MpFormula (STV $abs $abc) (ParticleDist $pid))
-   (MpFormula (STV $abs $abc) (ParticleDist $pid 1.0)))
 
 (= (AndFormula (STV $si $ci) (STV $sa $ca))
    (let*
@@ -11,11 +9,7 @@
       (STV $sb $cb)))
 (= (AndFormula (STV $s $c) (ParticleDist $pid $scale))
    (ParticleDist $pid (* $scale (tv-probability (STV $s $c)))))
-(= (AndFormula (STV $s $c) (ParticleDist $pid))
-   (AndFormula (STV $s $c) (ParticleDist $pid 1.0)))
 (= (AndFormula (ParticleDist $pid $scale) (STV $s $c)) (STV $s $c))
-(= (AndFormula (ParticleDist $pid) (STV $s $c))
-   (AndFormula (ParticleDist $pid 1.0) (STV $s $c)))
 
 (= (OrFormula (STV $si $ci) (STV $sa $ca))
    (let*
@@ -36,8 +30,6 @@
    (let $pairs (particle-fetch-pairs $pid)
       (STV (* $scale (dist-prob-gt $pairs $threshold))
          (particle-confidence-from-pairs $pairs))))
-(= (DistGreaterThanFormula (ParticleDist $pid) $threshold)
-   (DistGreaterThanFormula (ParticleDist $pid 1.0) $threshold))
 
 (= (DistGreaterThanDistFormula $pda $pdb)
    (let*
