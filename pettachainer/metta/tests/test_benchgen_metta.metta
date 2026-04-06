@@ -36,30 +36,16 @@
 
 !(test (== (BenchNoiseForwardRuleCount benchNoiseMix) 4) true)
 
-!(test
-   (not
-      (==
-         (collapse
-            (match &bench_meta (bench-noise-back-rule-meta benchNoiseMix 1 0)
-               yes))
-         ()))
+!(test (not (== (collapse (match &bench_meta (bench-noise-back-rule-meta benchNoiseMix 1 0) yes)) ()))
    true)
 
 !(test
    (==
-      (collapse
-         (query 100
-            kb
-            (: (bench-noise-back-head benchNoiseMix 1)
-               (BenchTarget benchNoiseMix 1)
-               $tv)))
+      (collapse (query 100 kb (: (bench-noise-back-head benchNoiseMix 1) (BenchTarget benchNoiseMix 1) $tv)))
       ())
    true)
 
-!(test
-   (==
-      (BenchListCount (collapse (query 100 kb (: $prf (NoiseDeadEnd benchNoiseMix $idx) $tv))))
-      2)
+!(test (== (BenchListCount (collapse (query 100 kb (: $prf (NoiseDeadEnd benchNoiseMix $idx) $tv)))) 2)
    true)
 
 !(BenchGenerate benchPaths3

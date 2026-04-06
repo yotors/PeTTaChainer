@@ -31,11 +31,7 @@
 (= (particle-ids-in-term (ParticleDist $pid $_scale)) ($pid))
 (= (particle-ids-in-term $term)
    (if (is-var $term) ()
-      (if (is-expr $term)
-         (fold-flat
-            (|-> ($acc $elem) (append $acc (particle-ids-in-term $elem)))
-            ()
-            $term)
+      (if (is-expr $term) (fold-flat (|-> ($acc $elem) (append $acc (particle-ids-in-term $elem))) () $term)
          ())))
 
 (= (ParticleStorePruneKB)
@@ -43,8 +39,7 @@
       (($keep
            (list_to_set
               (collapse
-                 (match &kb
-                    (: $_kb $_prf $_type $tv)
+                 (match &kb (: $_kb $_prf $_type $tv)
                     (append (particle-ids-in-term $_type) (particle-ids-in-term $tv))))))
         ($atoms (collapse (match &particle_store (particle $pid $x $w) ($pid $x $w))))
         ($_pruned

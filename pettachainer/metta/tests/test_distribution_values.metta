@@ -1,11 +1,9 @@
 !(import! &self petta_chainer)
 
-!(test
-   (ParticlePairs (ParticleAddBernoulliFromSTV (ParticleFromPairs ((0 1.0))) (STV 0.5 1.0)))
+!(test (ParticlePairs (ParticleAddBernoulliFromSTV (ParticleFromPairs ((0 1.0))) (STV 0.5 1.0)))
    ((0 0.5) (1 0.5)))
 
-!(test
-   (DistGreaterThanFormula (ParticleFromPairs ((0.1 0.25) (2.5 0.75))) 1.0)
+!(test (DistGreaterThanFormula (ParticleFromPairs ((0.1 0.25) (2.5 0.75))) 1.0)
    (STV 0.75 0.07407407407407407))
 
 !(compileadd kb (: kid1 (Kid kid1) (STV 1.0 1.0)))

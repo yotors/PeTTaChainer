@@ -53,24 +53,20 @@
 
 !(test
    (match rules
-      ($id
-         (: (kb $ctx $vars) (foldRule cpu) (ScoreTotal $total) $tv)
-         ((CPU FoldAllCompiled $call $total)
-            (CPU MpFormula ((STV 1.0 1.0) (STV 1.0 1.0)) $tv)))
+      ($id (: (kb $ctx $vars) (foldRule cpu) (ScoreTotal $total) $tv)
+         ((CPU FoldAllCompiled $call $total) (CPU MpFormula ((STV 1.0 1.0) (STV 1.0 1.0)) $tv)))
       ok)
    ())
 
 !(test
    (match rules
-      ($id
-         (: (kb $ctx $vars) (foldRule $prem) (ScoreTotal $total) $tv)
+      ($id (: (kb $ctx $vars) (foldRule $prem) (ScoreTotal $total) $tv)
          ((: $_kb $_prf (CPU FoldAllCompiled $call $total) $_cpu-tv)
             (CPU MpFormula ((STV 1.0 1.0) $_cpu-tv) $tv)))
       bad)
    ())
 
-!(test
-   (query 30 kb (: $prf (ScoreTotal $x) $tv))
+!(test (query 30 kb (: $prf (ScoreTotal $x) $tv))
    (: (rule-proof foldRule cpu) (ScoreTotal 6) (STV 1.0 0.9)))
 
 !(compileadd kb
@@ -79,8 +75,7 @@
          (Conclusions (Count MissingTotal $total)))
       (STV 1.0 1.0)))
 
-!(test
-   (collapse (query 10 kb (: $prf (Count MissingTotal $x) $tv)))
+!(test (collapse (query 10 kb (: $prf (Count MissingTotal $x) $tv)))
    ((: (rule-proof foldZeroRule cpu) (Count MissingTotal 42) (STV 1.0 0.9))))
 
 !(compileadd kb
@@ -97,26 +92,21 @@
 
 !(test
    (match rules
-      ($id
-         (: (kb $ctx $vars) (foldValueShapeRule cpu) (ScoreDist $dist) $tv)
-         ((CPU FoldAllCompiled $call $dist)
-            (CPU MpFormula ((STV 1.0 1.0) (STV 1.0 1.0)) $tv)))
+      ($id (: (kb $ctx $vars) (foldValueShapeRule cpu) (ScoreDist $dist) $tv)
+         ((CPU FoldAllCompiled $call $dist) (CPU MpFormula ((STV 1.0 1.0) (STV 1.0 1.0)) $tv)))
       ok)
    ())
 
 !(compileadd kb
    (: avgShapeRule
-      (Implication
-         (Premises (AverageDist (ScoreDistSrc $name $srcDist) $srcDist -> $avgDist))
+      (Implication (Premises (AverageDist (ScoreDistSrc $name $srcDist) $srcDist -> $avgDist))
          (Conclusions (AvgScoreDist $avgDist)))
       (STV 1.0 1.0)))
 
 !(test
    (match rules
-      ($id
-         (: (kb $ctx $vars) (avgShapeRule cpu) (AvgScoreDist $avgDist) $tv)
-         ((CPU FoldAllCompiled $call $avgDist)
-            (CPU MpFormula ((STV 1.0 1.0) (STV 1.0 1.0)) $tv)))
+      ($id (: (kb $ctx $vars) (avgShapeRule cpu) (AvgScoreDist $avgDist) $tv)
+         ((CPU FoldAllCompiled $call $avgDist) (CPU MpFormula ((STV 1.0 1.0) (STV 1.0 1.0)) $tv)))
       ok)
    ())
 
@@ -129,11 +119,8 @@
 !(test
    (match rules
       ($id
-         (: (kb MAIN Nil) (conjunction $fact-prf cpu)
-            (And (Count $name $n) (CPU NotEqual ($name MissingTotal) true))
-            $tv)
-         ((: (kb MAIN Nil) $fact-prf (Count $name $n) $count-tv)
-            (CPU NotEqual ($name MissingTotal) true)
+         (: (kb MAIN Nil) (conjunction $fact-prf cpu) (And (Count $name $n) (CPU NotEqual ($name MissingTotal) true)) $tv)
+         ((: (kb MAIN Nil) $fact-prf (Count $name $n) $count-tv) (CPU NotEqual ($name MissingTotal) true)
             (CPU AndFormula ($count-tv (STV 1.0 1.0)) $tv)))
       ok)
    ())
@@ -144,8 +131,7 @@
          (Conclusions (DerivedTotal $total)))
       (STV 1.0 1.0)))
 
-!(test
-   (collapse (query 30 kb (: $prf (DerivedTotal $x) $tv)))
+!(test (collapse (query 30 kb (: $prf (DerivedTotal $x) $tv)))
    ((: (rule-proof foldDerivedRule cpu) (DerivedTotal 6) (STV 1.0 0.9))))
 
 !(compileadd kb
@@ -161,15 +147,10 @@
          (Conclusions (Cardinality (DogsIn $h) $total)))
       (STV 1.0 1.0)))
 
-!(test
-   (collapse (query 30 kb (: $prf (Cardinality (DogsIn house1) $x) $tv)))
-   ((: (rule-proof dogsInHouseRule (rule-proof conjunction prf1 cpu))
-       (Cardinality (DogsIn house1) 5)
-       (STV 1.0 0.9))))
+!(test (collapse (query 30 kb (: $prf (Cardinality (DogsIn house1) $x) $tv)))
+   ((: (rule-proof dogsInHouseRule (rule-proof conjunction prf1 cpu)) (Cardinality (DogsIn house1) 5) (STV 1.0 0.9))))
 
 !(compileadd kb
    (: apbisc (Implication (Premises (Count A $a) (Count B $b) (Compute + ($a $b) -> $c)) (Conclusions (Count C $c))) (STV 1.0 1.0)))
 
-!(test
-   (collapse (query 10 kb (: prf (Count C $x) $tv)))
-   ((: prf (Count C 3) (STV 1.0 1.0))))
+!(test (collapse (query 10 kb (: prf (Count C $x) $tv))) ((: prf (Count C 3) (STV 1.0 1.0))))

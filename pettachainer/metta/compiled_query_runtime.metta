@@ -9,14 +9,11 @@
 (= (track-temp-query-ref $ref) (add-atom &temp_query_ref (clause_ref $ref)))
 
 (= (kb-add-atom live $space $expr) (add-atom $space $expr))
-(= (kb-add-atom temp $space $expr)
-   (track-temp-query-ref (assert-space-atom-ref $space $expr)))
+(= (kb-add-atom temp $space $expr) (track-temp-query-ref (assert-space-atom-ref $space $expr)))
 
 (= (kb-add-prem $backend $id $idx $prem)
    (let $key (forward-indexable-premise-key $prem)
-      (progn
-         (if (== $key ()) () (kb-add-atom $backend prem_index ($key $prem $id $idx)))
-         (+ $idx 1))))
+      (progn (if (== $key ()) () (kb-add-atom $backend prem_index ($key $prem $id $idx))) (+ $idx 1))))
 
 (= (kb-add-expr $backend $expr)
    (if (= $expr (rules ($args |- $ccls)))
@@ -27,15 +24,14 @@
            ($_3 (kb-add-atom $backend rules ($id $ccls $args)))
            ($_4 (if (== $backend live) (forward-register-added-rule $args $ccls) ())))
          ())
-      (progn (kb-add-atom $backend &kb $expr) (if (== $backend live) (forward-register-added-expr $expr) ()))))
+      (progn (kb-add-atom $backend &kb $expr)
+         (if (== $backend live) (forward-register-added-expr $expr) ()))))
 
 (= (clear-temp-query-adds)
    (progn
       (collapse
          (match &temp_query_ref (clause_ref $ref)
-            (progn
-               (erase-clause-ref $ref)
-               (remove-atom &temp_query_ref (clause_ref $ref)))))
+            (progn (erase-clause-ref $ref) (remove-atom &temp_query_ref (clause_ref $ref)))))
       ()))
 
 (= (inject-compiled-adds $adds) (if (= $adds ()) () (foreach-flat (kb-add-expr temp) $adds)))
@@ -49,4 +45,5 @@
         ($eres (map-flat externalize-proof-structure $results))
         ($pres (map-flat pretty $eres))
         ($_clear-temp-after (clear-temp-query-adds)))
-      (superpose $pres)))
+      (superpose
+         $pres)))

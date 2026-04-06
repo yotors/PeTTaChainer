@@ -2,7 +2,9 @@
 !(import! &self mining)
 
 !(use-module! heaps)
+
 !(import_prolog_function (superpose (empty_heap add_to_heap get_from_heap heap_size)))
+
 !(import! &self chainer_utils)
 !(import! &self forward_chainer)
 !(import! &self dist_formulas)
@@ -16,9 +18,9 @@
 (= (materialize-stmt-lambdas $term)
    (if (is-var $term) $term
       (if (is-expr $term)
-         (if (== (car-atom $term) |->)
-            (eval $term)
-            (cons (materialize-stmt-lambdas (car-atom $term)) (map-flat materialize-stmt-lambdas (cdr-atom $term))))
+         (if (== (car-atom $term) |->) (eval $term)
+            (cons (materialize-stmt-lambdas (car-atom $term))
+               (map-flat materialize-stmt-lambdas (cdr-atom $term))))
          $term)))
 
 (= (compileadd $kb $stmt)

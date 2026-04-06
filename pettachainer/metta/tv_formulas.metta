@@ -1,16 +1,8 @@
 (= (MpFormula (STV $abs $abc) (STV $as $ac)) (STV (* $abs $as) (* 0.9 (min $abc $ac))))
 
-(= (AndFormula (STV $si $ci) (STV $sa $ca))
-   (let*
-      (($sb (min $si $sa))
-        ($cb (min $ci $ca)))
-      (STV $sb $cb)))
+(= (AndFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (min $si $sa)) ($cb (min $ci $ca))) (STV $sb $cb)))
 
-(= (OrFormula (STV $si $ci) (STV $sa $ca))
-   (let*
-      (($sb (min $si $sa))
-        ($cb (max $ci $ca)))
-      (STV $sb $cb)))
+(= (OrFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (min $si $sa)) ($cb (max $ci $ca))) (STV $sb $cb)))
 
 (= (LikelierThanFormula (STV $sa $ca) (STV $sb $cb))
    (let*
@@ -23,8 +15,7 @@
 
 (= (DistGreaterThanFormula (ParticleDist $pid $scale) $threshold)
    (let $pairs (particle-fetch-pairs $pid)
-      (STV (* $scale (dist-prob-gt $pairs $threshold))
-         (particle-confidence-from-pairs $pairs))))
+      (STV (* $scale (dist-prob-gt $pairs $threshold)) (particle-confidence-from-pairs $pairs))))
 
 (= (DistGreaterThanDistFormula $pda $pdb)
    (let*
@@ -44,4 +35,5 @@
    (STV (/ (* $sb $sab) $sa) (* (min-atom ($ca $cb $cab)) 0.9)))
 
 (= (Equal $a $b) (== $a $b))
+
 (= (NotEqual $a $b) (not (== $a $b)))

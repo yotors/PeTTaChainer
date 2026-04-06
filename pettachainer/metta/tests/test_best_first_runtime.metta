@@ -5,14 +5,10 @@
 !(compileadd kb (: baseFact (BasePremise) (STV 1.0 1.0)))
 
 !(compileadd kb
-   (: ruleHighThenDrop
-      (Implication (Premises (WeakPremise) (BasePremise)) (Conclusions (SwitchGoal)))
-      (STV 1.0 0.9)))
+   (: ruleHighThenDrop (Implication (Premises (WeakPremise) (BasePremise)) (Conclusions (SwitchGoal))) (STV 1.0 0.9)))
 
 !(compileadd kb
-   (: ruleStable
-      (Implication (Premises (BasePremise)) (Conclusions (SwitchGoal)))
-      (STV 1.0 0.7)))
+   (: ruleStable (Implication (Premises (BasePremise)) (Conclusions (SwitchGoal))) (STV 1.0 0.7)))
 
 !(test
    (let (: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.63))
@@ -22,10 +18,7 @@
    true)
 
 !(test
-   (let
-      (: (rule-proof ruleHighThenDrop (conjunction weakFact baseFact))
-         (SwitchGoal)
-         (STV 1.0 0.1))
+   (let (: (rule-proof ruleHighThenDrop (conjunction weakFact baseFact)) (SwitchGoal) (STV 1.0 0.1))
       (superpose (collapse
                   (query 30 kb (: $prf (SwitchGoal) $tv))))
       true)

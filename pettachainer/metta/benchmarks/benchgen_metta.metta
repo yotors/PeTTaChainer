@@ -447,10 +447,7 @@
       (collapse (match &bench_meta (bench-main-rule-meta $bench $_path $_level $_idx $_width $_conf) ok))))
 
 (= (BenchBaseFactCount $bench)
-   (BenchListCount
-      (collapse
-         (match &kb ($_type $_kb (bench-base-fact $bench $_path $_idx) $_tv)
-            ok))))
+   (BenchListCount (collapse (match &kb ($_type $_kb (bench-base-fact $bench $_path $_idx) $_tv) ok))))
 
 (= (BenchNoiseBackwardRuleCount $bench)
    (BenchListCount (collapse (match &bench_meta (bench-noise-back-rule-meta $bench $_idx $_step) ok))))

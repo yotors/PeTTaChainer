@@ -1,8 +1,6 @@
 !(import! &self math)
 
-!(test
-   (not (== (collapse (query 10 mathkb (: $prf (Provable (→ $𝜑 (→ $𝜓 $𝜑))) $tv))) ()))
-   true)
+!(test (not (== (collapse (query 10 mathkb (: $prf (Provable (→ $𝜑 (→ $𝜓 $𝜑))) $tv))) ())) true)
 
 !(test (not (== (collapse (query 1 mathkb (: $prf (Provable (→ a a)) $tv))) ())) true)
 

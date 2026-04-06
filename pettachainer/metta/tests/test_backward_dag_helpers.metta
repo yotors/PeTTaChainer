@@ -10,11 +10,9 @@
 
 !(test (term-confidence (CPU OrFormula ((STV 0.8 0.4) (STV 0.9 0.7)) $out)) 0.7)
 
-!(test (term-confidence (CPU LikelierThanFormula ((STV 0.8 0.4) (STV 0.9 0.7)) $out))
-   0.4)
+!(test (term-confidence (CPU LikelierThanFormula ((STV 0.8 0.4) (STV 0.9 0.7)) $out)) 0.4)
 
-!(test (term-confidence (CPU InversionFormula ($a $b (STV 0.8 0.632121)) $out))
-   0.5689089)
+!(test (term-confidence (CPU InversionFormula ($a $b (STV 0.8 0.632121)) $out)) 0.5689089)
 
 !(test
    (premises-expected-confidence
@@ -27,8 +25,7 @@
       (cons ((Animal #) (kb MAIN Nil) $prfA $tvA)
          (cons ((Creature #) (kb MAIN Nil) $prfB $tvB)
             (cons (CPU InversionFormula ($tvA $tvB (STV 0.8 0.632121)) $iitv)
-               (cons ((Creature #) (kb MAIN Nil) $prfC $tvB)
-                  (cons (CPU MpFormula ($iitv $tvB) $tvA) ()))))))
+               (cons ((Creature #) (kb MAIN Nil) $prfC $tvB) (cons (CPU MpFormula ($iitv $tvB) $tvA) ()))))))
    0.5689089)
 
 !(test
@@ -54,20 +51,17 @@
         ($gid (ensure-goal-at-depth ((Goal) (kb MAIN ()) $prf (STV 1.0 1.0)) 0))
         ($pid-a
            (store-proof-candidate $gid
-              (proof-candidate
-                 (leaf ((Goal) (kb MAIN ()) (bench-base-fact demo 1 1) (STV 1.0 0.8)))
+              (proof-candidate (leaf ((Goal) (kb MAIN ()) (bench-base-fact demo 1 1) (STV 1.0 0.8)))
                  0.8
                  ((fact-ev (kb MAIN ()) (bench-base-fact demo 1 1) (Goal)))
                  ())))
         ($pid-b
            (store-proof-candidate $gid
-              (proof-candidate
-                 (leaf ((Goal) (kb MAIN ()) (bench-base-fact demo 1 2) (STV 1.0 0.7)))
+              (proof-candidate (leaf ((Goal) (kb MAIN ()) (bench-base-fact demo 1 2) (STV 1.0 0.7)))
                  0.7
                  ((fact-ev (kb MAIN ()) (bench-base-fact demo 1 2) (Goal)))
                  ()))))
-      (evidence-sets-overlap? (snd (proof-stats-by-id $pid-a))
-         (snd (proof-stats-by-id $pid-b))))
+      (evidence-sets-overlap? (snd (proof-stats-by-id $pid-a)) (snd (proof-stats-by-id $pid-b))))
    false)
 
 !(test
@@ -85,11 +79,7 @@
       (materialize-proof $pid))
    factA)
 
-!(test
-   (proof-term-children (custom-proof left right))
-   ())
+!(test (proof-term-children (custom-proof left right)) ())
 
-!(test
-   (proof-term-evidence-list
-      (rule-proof own_have (fact-ev (kb MAIN ()) i_have_max (Have (i max)))))
+!(test (proof-term-evidence-list (rule-proof own_have (fact-ev (kb MAIN ()) i_have_max (Have (i max)))))
    ((fact-ev (kb MAIN ()) i_have_max (Have (i max)))))

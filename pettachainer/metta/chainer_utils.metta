@@ -1,15 +1,11 @@
-(= (tv-confidence $tv)
-   (if (is-var $tv) 1.0 (if (= $tv (STV $_s $c)) (if (is-var $c) 1.0 $c) 1.0)))
+(= (tv-confidence $tv) (if (is-var $tv) 1.0 (if (= $tv (STV $_s $c)) (if (is-var $c) 1.0 $c) 1.0)))
 
-(= (goal-has-type-vars? ($type ($_kbid $_ctx $_vars) $_prf $_tv))
-   (not (== (extract-vars $type) ())))
+(= (goal-has-type-vars? ($type ($_kbid $_ctx $_vars) $_prf $_tv)) (not (== (extract-vars $type) ())))
 (= (goal-has-type-vars? (CPU $_fun $_args $_res)) false)
 
 (= (goal-key ($type ($kbid $ctx $vars) $_prf $_tv))
-   (let $sealed-type (sealed (extract-vars $type) $type)
-      ($sealed-type ($kbid $ctx $vars))))
-(= (goal-key (CPU $fun $args $res))
-   (sealed (extract-vars (CPU $fun $args $res)) (CPU $fun $args $res)))
+   (let $sealed-type (sealed (extract-vars $type) $type) ($sealed-type ($kbid $ctx $vars))))
+(= (goal-key (CPU $fun $args $res)) (sealed (extract-vars (CPU $fun $args $res)) (CPU $fun $args $res)))
 
 (= (normalize-expected-tv $tv)
    (if (is-var $tv) (STV 1.0 1.0)
@@ -19,10 +15,7 @@
    (if (is-member $fun (() MpFormula AndFormula OrFormula LikelierThanFormula))
       (let*
          ((($a $b) $args)
-           ($res
-              (reduce
-                 (reduce
-                    (cons $fun ((normalize-expected-tv $a) (normalize-expected-tv $b)))))))
+           ($res (reduce (reduce (cons $fun ((normalize-expected-tv $a) (normalize-expected-tv $b)))))))
          (tv-confidence $res))
       (if (== $fun InversionFormula)
          (let*
@@ -31,8 +24,7 @@
                  (reduce
                     (reduce
                        (cons $fun
-                          ((normalize-expected-tv $a) (normalize-expected-tv $b)
-                             (normalize-expected-tv $ab)))))))
+                          ((normalize-expected-tv $a) (normalize-expected-tv $b) (normalize-expected-tv $ab)))))))
             (tv-confidence $res))
          1.0)))
 
@@ -58,8 +50,7 @@
 (= (RevisionMergeProof ($type1 $kb $prf1 $tv1) ($_type2 $_kb2 $prf2 $tv2))
    ($type1 $kb
       (merge/revision $prf1 $prf2)
-      (if (and (= $tv1 (STV $_m1 $_c1)) (= $tv2 (STV $_m2 $_c2))) (mergetvs $tv1 $tv2)
-         $tv1)))
+      (if (and (= $tv1 (STV $_m1 $_c1)) (= $tv2 (STV $_m2 $_c2))) (mergetvs $tv1 $tv2) $tv1)))
 
 (= (foreach-flat $f ()) ())
 (= (foreach-flat $f (cons $x $xs)) (progn ($f $x) (foreach-flat $f $xs)))
@@ -87,12 +78,9 @@
 (= (proof-tree-contains $tree $needle)
    (let*
       (($ptree (if (= $tree (proof-ref $ptreeid)) (materialize-proof $ptreeid) $tree))
-        ($pneedle
-           (if (= $needle (proof-ref $pneedleid)) (materialize-proof $pneedleid)
-              $needle)))
+        ($pneedle (if (= $needle (proof-ref $pneedleid)) (materialize-proof $pneedleid) $needle)))
       (if (== $ptree $pneedle) true
-         (if (is-expr $ptree) (proof-tree-contains-list (cdr-atom $ptree) $pneedle)
-            false))))
+         (if (is-expr $ptree) (proof-tree-contains-list (cdr-atom $ptree) $pneedle) false))))
 
 (= (proof-term-leaf-head? $head) (is-member $head (() fact-ev CPU STV)))
 
@@ -111,22 +99,18 @@
 
 (= (proof-term-evidence-list-mode $mode (@ $prf (proof-ref $pid))) (snd (proof-stats-by-id $pid)))
 (= (proof-term-evidence-list-mode $mode (@ $prf (merge/revision $left $right)))
-   (append (proof-term-evidence-list-mode $mode $left)
-      (proof-term-evidence-list-mode $mode $right)))
+   (append (proof-term-evidence-list-mode $mode $left) (proof-term-evidence-list-mode $mode $right)))
 (= (proof-term-evidence-list-mode $mode $prf)
    (if (is-var $prf) ()
       (let $children (proof-term-children-mode $mode $prf)
-         (if (== $children ()) (cons $prf ())
-            (proof-term-evidence-children-mode $mode $children)))))
+         (if (== $children ()) (cons $prf ()) (proof-term-evidence-children-mode $mode $children)))))
 
-(= (proof-term-evidence-list $prf)
-   (once (proof-term-evidence-list-mode proof-walk-plain $prf)))
+(= (proof-term-evidence-list $prf) (once (proof-term-evidence-list-mode proof-walk-plain $prf)))
 
 (= (proof-atom-evidence-set ($_type $kb $prf $_tv))
    (list_to_set (once (proof-term-evidence-list-mode proof-walk-in-kb $prf))))
 
-(= (evidence-sets-overlap? $set-a $set-b)
-   (not (== (intersection-atom $set-a $set-b) ())))
+(= (evidence-sets-overlap? $set-a $set-b) (not (== (intersection-atom $set-a $set-b) ())))
 
 (= (evidence-subset? $set-a $set-b) (== (subtraction-atom $set-a $set-b) ()))
 
@@ -135,19 +119,14 @@
       (let*
          ((($_typea $_kba $prfa $_tva) $proof-a)
            (($_typeb $_kbb $prfb $_tvb) $proof-b))
-         (if $proof-a
-            (and (= $prfa (merge/revision $_la $_ra)) (proof-tree-contains $prfa $prfb))
-            (if $proof-b
-               (and (= $prfb (merge/revision $_lb $_rb))
-                  (proof-tree-contains $prfb $prfa))
+         (if $proof-a (and (= $prfa (merge/revision $_la $_ra)) (proof-tree-contains $prfa $prfb))
+            (if $proof-b (and (= $prfb (merge/revision $_lb $_rb)) (proof-tree-contains $prfb $prfa))
                (let*
                   (($ev-a (proof-atom-evidence-set $proof-a))
                     ($ev-b (proof-atom-evidence-set $proof-b))
                     ($overlap? (evidence-sets-overlap? $ev-a $ev-b)))
                   (if $overlap?
-                     (if (>= (term-confidence $proof-a) (term-confidence $proof-b))
-                        $proof-a
-                        $proof-b)
+                     (if (>= (term-confidence $proof-a) (term-confidence $proof-b)) $proof-a $proof-b)
                      (if (>= (term-confidence $proof-a) (term-confidence $proof-b))
                         (RevisionMergeProof $proof-a $proof-b)
                         (RevisionMergeProof $proof-b $proof-a)))))))))

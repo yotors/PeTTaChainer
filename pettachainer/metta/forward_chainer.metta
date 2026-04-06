@@ -3,34 +3,27 @@
 (= (forward-type-trigger-key $kbid $type)
    (if (is-var $type) (fwd_trigger $kbid any)
       (if (is-expr $type)
-         (let $head (car-atom $type)
-            (if (is-var $head) (fwd_trigger $kbid any) (fwd_trigger $kbid $head)))
+         (let $head (car-atom $type) (if (is-var $head) (fwd_trigger $kbid any) (fwd_trigger $kbid $head)))
          (fwd_trigger $kbid $type))))
 
 (= (forward-indexable-premise-key $prem)
-   (if (= $prem ($_type ($kbid $_ctx $_vars) $_prf $_tv))
-      (forward-type-trigger-key $kbid $_type)
-      ()))
+   (if (= $prem ($_type ($kbid $_ctx $_vars) $_prf $_tv)) (forward-type-trigger-key $kbid $_type) ()))
 
 (= (forward-premise-index-key $prem)
-   (let $key (forward-indexable-premise-key $prem)
-      (if (== $key ()) fwd_trigger_any $key)))
+   (let $key (forward-indexable-premise-key $prem) (if (== $key ()) fwd_trigger_any $key)))
 
 (= (forward-premise-wildcard-key $prem)
-   (if (= $prem ($_type ($kbid $_ctx $_vars) $_prf $_tv)) (fwd_trigger $kbid any)
-      fwd_trigger_any))
+   (if (= $prem ($_type ($kbid $_ctx $_vars) $_prf $_tv)) (fwd_trigger $kbid any) fwd_trigger_any))
 
 (= (forward-load-agenda $kb)
    (let $magenda (catch (get-state (atom_concat fwd_agenda_ $kb)))
       (if-error $magenda (empty_heap) $magenda)))
 
-(= (forward-save-agenda $kb $agenda)
-   (change-state! (atom_concat fwd_agenda_ $kb) $agenda))
+(= (forward-save-agenda $kb $agenda) (change-state! (atom_concat fwd_agenda_ $kb) $agenda))
 
 (= (forward-fact-key ($type ($kbid $ctx $vars) $_prf $_tv)) (($kbid $ctx $vars) $type))
 
-(= (forward-pending-state-key $fact)
-   (atom_concat fwd_pending_ (term_hash (forward-fact-key $fact))))
+(= (forward-pending-state-key $fact) (atom_concat fwd_pending_ (term_hash (forward-fact-key $fact))))
 
 (= (forward-pending-score-of $fact)
    (let*
@@ -42,12 +35,10 @@
             (if (== $stored-key (forward-fact-key $fact)) $score 0.0)
             0.0))))
 
-(= (clear-forward-pending-score $fact)
-   (change-state! (forward-pending-state-key $fact) (pending () 0.0)))
+(= (clear-forward-pending-score $fact) (change-state! (forward-pending-state-key $fact) (pending () 0.0)))
 
 (= (set-forward-pending-score $fact $score)
-   (change-state! (forward-pending-state-key $fact)
-      (pending (forward-fact-key $fact) $score)))
+   (change-state! (forward-pending-state-key $fact) (pending (forward-fact-key $fact) $score)))
 
 (= (forward-register-added-expr $expr)
    (if (= $expr ($type ($kbid MAIN Nil) $prf $tv))
@@ -80,16 +71,14 @@
 (= (forward-satisfy-premises $steps () $goal) $goal)
 (= (forward-satisfy-premises $steps (cons $prem $rest) $goal)
    (if (= $prem (CPU $fun $args $res))
-      (let $res (reduce (cpu-call $steps $fun $args))
-         (forward-satisfy-premises $steps $rest $goal))
+      (let $res (reduce (cpu-call $steps $fun $args)) (forward-satisfy-premises $steps $rest $goal))
       (if (= $prem ($_type ($_kbid $_ctx $_vars) $_prf $_tv))
          (match &kb $prem
             (forward-satisfy-premises $steps $rest $goal))
          (empty))))
 
 (= (agenda-push-fact $agenda $fact)
-   (let $score (term-confidence $fact)
-      (add_to_heap $agenda (- 0 $score) (qitem $score $fact))))
+   (let $score (term-confidence $fact) (add_to_heap $agenda (- 0 $score) (qitem $score $fact))))
 
 (= (agenda-push-fact-best $agenda $fact)
    (let*
@@ -124,8 +113,7 @@
         ($wildcard-key (forward-premise-wildcard-key $fact))
         ($direct (forward-rule-results-for-key $steps $kb $fact $key))
         ($wildcard
-           (if (== $key $wildcard-key) (empty)
-              (forward-rule-results-for-key $steps $kb $fact $wildcard-key))))
+           (if (== $key $wildcard-key) (empty) (forward-rule-results-for-key $steps $kb $fact $wildcard-key))))
       (union-atom $direct $wildcard)))
 
 (= (forward-loop $steps $kb $agenda)
@@ -147,5 +135,4 @@
         ($_save (forward-save-agenda $kb $nagenda)))
       true))
 
-(= (forward-has-derived? $kb $type)
-   (not (== (collapse (match &kb ($type ($kb MAIN Nil) $prf $tv) $prf)) ())))
+(= (forward-has-derived? $kb $type) (not (== (collapse (match &kb ($type ($kb MAIN Nil) $prf $tv) $prf)) ())))

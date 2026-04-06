@@ -50,14 +50,7 @@
 (= (advance-frontier-bundle (and-bundle $goal (cons $prem $rest)) $pid)
    (if (= $prem (proof-output-atom $pid)) (and-bundle $goal $rest) ()))
 
-(=
-   (advance-frontier-waiter-heap $agenda
-      (frontier-waiter $parent-gid
-         $bundle
-         $score
-         $seen
-         $rev-pids)
-      $pid)
+(= (advance-frontier-waiter-heap $agenda (frontier-waiter $parent-gid $bundle $score $seen $rev-pids) $pid)
    (let*
       ((($pscore $pev) (proof-stats-by-id $pid))
         ($overlap (evidence-sets-overlap? $seen $pev))
@@ -71,8 +64,7 @@
                (list_to_set (append $seen $pev))
                (cons $pid $rev-pids))))))
 
-(= (frontier-waiter-step (@ $waiter (head frontier-waiter)) $rest)
-   (cons $waiter $rest))
+(= (frontier-waiter-step (@ $waiter (head frontier-waiter)) $rest) (cons $waiter $rest))
 (= (frontier-waiter-step $_waiter $rest) $rest)
 
 (= (spawn-frontier-goal-heap $agenda $score $gid $waiter)
