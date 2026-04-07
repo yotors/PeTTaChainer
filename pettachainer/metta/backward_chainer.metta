@@ -146,25 +146,19 @@
       (match &kb ($qtype $kb $prf $tv)
          ($qtype $kb $prf $tv))))
 
-(= (direct-result-exact-hit ($type $kb $prf $tv) $result) (=? ($type $kb $prf $tv) $result))
-(= (direct-result-exact-hit (CPU $fun $args $res) $result)
-   (or (== (CPU $fun $args $res) $result) (=alpha (CPU $fun $args $res) $result)))
-
-(= (expand-direct-goal-step $gid $goal (expand-state $agenda $exact-hit) $result)
+(= (expand-direct-goal-step $gid $_goal $agenda $result)
    (let*
       (($score (term-confidence $result))
         ($ev (leaf-evidence-for-result $result))
         ($accepted (classify-goal-proof-candidate $gid $ev $score))
-        ($nagenda (commit-proof-candidate-heap $agenda $gid $accepted (leaf-result-candidate $result $ev)))
-        ($nexact-hit (or $exact-hit (direct-result-exact-hit $goal $result))))
-      (expand-state $nagenda $nexact-hit)))
+        ($nagenda (commit-proof-candidate-heap $agenda $gid $accepted (leaf-result-candidate $result $ev))))
+      $nagenda))
 
 (= (expand-direct-goal-heap $agenda $steps $gid $goal)
    (let*
       (($results (collapse (direct-goal-results-view $steps $goal)))
-        ((expand-state $agenda1 $exact-hit)
-           (fold-flat (expand-direct-goal-step $gid $goal) (expand-state $agenda false) $results)))
-      (if $exact-hit $agenda1 (expand-rule-goal-heap $agenda1 $gid $goal))))
+        ($agenda1 (fold-flat (expand-direct-goal-step $gid $goal) $agenda $results)))
+      (expand-rule-goal-heap $agenda1 $gid $goal)))
 
 (= (spawn-frontier-heap $agenda $parent-gid $bundle $score $seen $rev-pids)
    (case $bundle (
