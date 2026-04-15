@@ -27,9 +27,41 @@
    (match &proof ($pid $_gid $_output $kind $_score $_ev $_children)
       (materialize-proof-kind $kind $pid)))
 
+(= (goal-proof-ids $gid)
+   (collapse (match &proof ($pid $gid $_output $_kind $_score $_ev $_children) $pid)))
+
+(= (proof-goal-id $pid)
+   (match &proof ($pid $gid $_output $_kind $_score $_ev $_children) $gid))
+
+(= (proof-children-by-id $pid)
+   (match &proof ($pid $_gid $_output $_kind $_score $_ev $children) $children))
+
+(= (proof-list-live? ())
+   true)
+(= (proof-list-live? (cons $pid $rest))
+   (and (proof-live? $pid) (proof-list-live? $rest)))
+
+(= (proof-live? $pid)
+   (let*
+      (($gid (proof-goal-id $pid))
+       ($current-hits
+          (collapse
+             (once
+                (match &aggregate ($gid $_child $_args $_base $_pending $current-pid)
+                   $current-pid)))))
+      (if (== $current-hits ())
+         (proof-list-live? (proof-children-by-id $pid))
+         (== (car-atom $current-hits) $pid))))
+
+(= (goal-live-proof-step $acc $pid)
+   (if (proof-live? $pid) (append $acc ($pid)) $acc))
+
+(= (goal-live-proof-ids $gid)
+   (fold-flat goal-live-proof-step () (goal-proof-ids $gid)))
+
 (= (goal-results $gid)
    (let*
-      (($pids (collapse (match &proof ($pid $gid $_output $_kind $_score $_ev $_children) $pid)))
+      (($pids (goal-live-proof-ids $gid))
         (($_depth $goal $_expanded $_pending) (goal-by-id $gid)))
       (if (goal-has-type-vars? $goal) (map-flat materialize-result-atom (map-flat proof-output-atom $pids))
          (case $pids (
@@ -58,7 +90,7 @@
 (= (classify-goal-proof-candidate $gid $ev $score)
    (fold-flat (goal-proof-candidate-step $ev $score)
       true
-      (collapse (match &proof ($oldpid $gid $_output $_kind $_score $_ev1 $_children) $oldpid))))
+      (goal-live-proof-ids $gid)))
 
 (= (store-proof-candidate $gid (proof-candidate $kind $score $ev $children))
    (let*
@@ -88,10 +120,40 @@
 (= (candidate-is-cyclic? $gid (cons $pid $pids))
    (or (proof-depends-on-goal-seen? $pid $gid ()) (candidate-is-cyclic? $gid $pids)))
 
+(= (wake-proof-commit-heap $agenda $gid $pid)
+   (let*
+      (($waiters (collapse (match &goal_waiter ($gid $waiter) $waiter)))
+       ($agenda1
+          (fold-flat (|-> ($acc $waiter) (advance-frontier-waiter-heap $acc $waiter $pid))
+             $agenda
+             (foldr-flat frontier-waiter-step () $waiters)))
+       ($agenda2
+          (fold-flat (|-> ($acc $agg-gid) (schedule-aggregate-heap $acc $agg-gid))
+             $agenda1
+             (foldr-flat aggregate-waiter-step () $waiters))))
+      $agenda2))
+
 (= (commit-proof-candidate-heap $agenda $gid $accepted (proof-candidate $kind $score $ev $children))
    (if (== $accepted false) $agenda
       (if (candidate-is-cyclic? $gid $children) $agenda
          (let $pid (store-proof-candidate $gid (proof-candidate $kind $score $ev $children))
-            (fold-flat (|-> ($acc $waiter) (advance-frontier-waiter-heap $acc $waiter $pid))
-               $agenda
-               (foldr-flat frontier-waiter-step () (collapse (match &goal_waiter ($gid $waiter) $waiter))))))))
+            (wake-proof-commit-heap $agenda $gid $pid)))))
+
+(= (aggregate-snapshot-changed? () $_result $_ev)
+   true)
+(= (aggregate-snapshot-changed? $current-pid $result $ev)
+   (let*
+      (($current-output (proof-output-atom $current-pid))
+       (($_current-score $current-ev) (proof-stats-by-id $current-pid)))
+      (or (not (== $current-output $result)) (not (== $current-ev $ev)))))
+
+(= (commit-aggregate-snapshot-heap $agenda $agg-gid $result $ev)
+   (let*
+      ((($child-gid $args $base-score $pending $current-pid) (aggregate-by-id $agg-gid))
+       ($pid (store-proof-candidate $agg-gid (leaf-result-candidate $result $ev)))
+       ($_set
+          (progn
+             (remove-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $current-pid))
+             (add-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $pid))))
+       ($nagenda (wake-proof-commit-heap $agenda $agg-gid $pid)))
+      $nagenda))

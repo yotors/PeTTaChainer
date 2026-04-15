@@ -116,17 +116,34 @@
            (if (== $key $wildcard-key) (empty) (forward-rule-results-for-key $steps $kb $fact $wildcard-key))))
       (union-atom $direct $wildcard)))
 
+(= (forward-step-fact $steps $kb $agenda $fact)
+   (let*
+      (($_clear (clear-forward-pending-score $fact))
+        ($derived (forward-rule-results $steps $kb $fact))
+        ($nagenda (fold-flat forward-fact-upsert $agenda $derived)))
+      $nagenda))
+
 (= (forward-loop $steps $kb $agenda)
    (if (or (== (heap_size $agenda) 0) (<= $steps 0)) $agenda
       (let $rest (get_from_heap $agenda $_priority $item)
          (let (qitem $score $fact) $item
             (if (== (forward-pending-score-of $fact) $score)
-               (let*
-                  (($_clear (clear-forward-pending-score $fact))
-                    ($derived (forward-rule-results $steps $kb $fact))
-                    ($nagenda (fold-flat forward-fact-upsert $rest $derived)))
-                  (forward-loop (- $steps 1) $kb $nagenda))
+               (forward-loop (- $steps 1) $kb (forward-step-fact $steps $kb $rest $fact))
                (forward-loop $steps $kb $rest))))))
+
+(= (forward-target-type (: $_name $type $_tv)) $type)
+(= (forward-target-type ($_type ($_kbid $_ctx $_vars) $_prf $_tv)) $_type)
+(= (forward-target-type $type) $type)
+
+(= (forward-select-fact $kb $target)
+   (let*
+      (($type (forward-target-type $target))
+        ($matches
+           (collapse
+              (once
+                 (match &kb ($type ($kb MAIN Nil) $prf $tv)
+                    ($type ($kb MAIN Nil) $prf $tv))))))
+      (if (== $matches ()) () (car-atom $matches))))
 
 (= (forward-chain $steps $kb)
    (let*
@@ -134,5 +151,16 @@
         ($nagenda (forward-loop $steps $kb $agenda))
         ($_save (forward-save-agenda $kb $nagenda)))
       true))
+
+(= (forward-chain-from $steps $kb $target)
+   (let*
+      (($agenda (forward-load-agenda $kb))
+        ($fact (forward-select-fact $kb $target)))
+      (if (== $fact ()) false
+         (let*
+            (($agenda1 (if (<= $steps 0) $agenda (forward-step-fact $steps $kb $agenda $fact)))
+              ($nagenda (if (<= $steps 1) $agenda1 (forward-loop (- $steps 1) $kb $agenda1)))
+              ($_save (forward-save-agenda $kb $nagenda)))
+            true))))
 
 (= (forward-has-derived? $kb $type) (not (== (collapse (match &kb ($type ($kb MAIN Nil) $prf $tv) $prf)) ())))
