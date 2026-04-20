@@ -200,6 +200,53 @@
 
 (= (PairCountsToDist (PairCounts $pairs)) (ParticleFromPairs $pairs))
 
+(= (numeric-distance2 $a $b)
+   (let $mdelta (catch (- $a $b))
+      (if-error $mdelta 1000000.0
+         (let $delta $mdelta (* $delta $delta)))))
+
+(= (struct-distance2-list () ()) 0.0)
+(= (struct-distance2-list () $_rest) 1000000.0)
+(= (struct-distance2-list $_rest ()) 1000000.0)
+(= (struct-distance2-list (cons $a $as) (cons $b $bs))
+   (+ (struct-distance2 $a $b) (struct-distance2-list $as $bs)))
+
+(= (struct-distance2 $a $b)
+   (if (== $a $b) 0.0
+      (if (and (is-expr $a) (is-expr $b))
+         (if (== (car-atom $a) (car-atom $b))
+            (struct-distance2-list (cdr-atom $a) (cdr-atom $b))
+            1000000.0)
+         (numeric-distance2 $a $b))))
+
+(= (kernel-mass $dist2 $bandwidth)
+   (if (<= $bandwidth 0.0)
+      (if (== $dist2 0.0) 1.0 0.0)
+      (/ 1.0 (+ 1.0 (/ $dist2 (* $bandwidth $bandwidth))))))
+
+(= (joint-cond-add-sample $input $inputw (Pair $sample $output) $samplew $bandwidth $acc)
+   (let*
+      (($sim (kernel-mass (struct-distance2 $sample $input) $bandwidth))
+        ($mass (* $inputw (* $samplew $sim))))
+      (if (> $mass 0.0) (dist-add-mass $acc $output $mass) $acc)))
+
+(= (joint-cond-inner $_input $_inputw () $_bandwidth $acc) $acc)
+(= (joint-cond-inner $input $inputw (cons ($key $samplew) $tail) $bandwidth $acc)
+   (let $nacc (joint-cond-add-sample $input $inputw $key $samplew $bandwidth $acc)
+      (joint-cond-inner $input $inputw $tail $bandwidth $nacc)))
+
+(= (joint-cond-pairs () $_jointpairs $_bandwidth $acc) $acc)
+(= (joint-cond-pairs (cons ($input $inputw) $tail) $jointpairs $bandwidth $acc)
+   (let $nacc (joint-cond-inner $input $inputw $jointpairs $bandwidth $acc)
+      (joint-cond-pairs $tail $jointpairs $bandwidth $nacc)))
+
+(= (CondDistFromJoint $jointDist $inputDist $bandwidth)
+   (let*
+      (($jointpairs (ParticlePairs $jointDist))
+        ($inputpairs (ParticlePairs $inputDist))
+        ($zpairs (joint-cond-pairs $inputpairs $jointpairs $bandwidth ())))
+      (ParticleFromPairs $zpairs)))
+
 (= (ParticleAddBernoulliFromSTV $pd $tv)
    (let*
       (($pid (particle-dist-id $pd))
