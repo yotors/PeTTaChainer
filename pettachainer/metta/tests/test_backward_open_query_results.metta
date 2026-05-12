@@ -9,7 +9,25 @@
 
 !(test (collapse (query 20 openQueryKb (: $prf (Animal $a) $tv)))
    ((: (rule-proof (no_inverse dog_to_animal) d1) (Animal max) (STV 1.0 0.9))
-      (: (rule-proof (no_inverse dog_to_animal) d2) (Animal ann) (STV 1.0 0.9))))
+    (: (rule-proof (no_inverse dog_to_animal) d2) (Animal ann) (STV 1.0 0.9))))
+
+!(compileadd openTimeKb (: tx1 (AtTime (FeatureX 0) 1) (STV 1.0 0.9)))
+
+!(compileadd openTimeKb (: ty1 (AtTime (FeatureY 0) 1) (STV 1.0 0.9)))
+
+!(compileadd openTimeKb
+   (: timeAndRule
+      (Implication
+         (Premises (AtTime $x $t) (AtTime $y $t))
+         (Conclusions (AtTime (And $x $y) $t)))
+      (STV 1.0 1.0)))
+
+!(test
+   (collapse (query 50 openTimeKb (: $prf (AtTime $f $t) $tv)))
+   ((: tx1 (AtTime (FeatureX 0) 1) (STV 1.0 0.9))
+    (: ty1 (AtTime (FeatureY 0) 1) (STV 1.0 0.9))
+    (: (rule-proof timeAndRule (rule-proof conjunction ty1 tx1)) (AtTime (And (FeatureY 0) (FeatureX 0)) 1) (STV 1.0 0.81))
+    (: (rule-proof timeAndRule (rule-proof conjunction tx1 ty1)) (AtTime (And (FeatureX 0) (FeatureY 0)) 1) (STV 1.0 0.81))))
 
 !(compileadd openAndFairKb (: haveMax (Have (i max)) (STV 1.0 1.0)))
 
@@ -56,8 +74,28 @@
    (: distractRule6 (Implication (Premises (Distract6 $x)) (Conclusions (Pet $x))) (STV 1.0 1.0)))
 
 !(test
-   (let (: $prf (And (Own (i ann)) (Pet ann)) $tv)
-      (superpose (collapse
-                  (query 20 openAndFairKb (: $prf (And (Own (i $a)) (Pet $a)) $tv))))
-      true)
-   true)
+   (collapse (query 20 openAndFairKb (: $prf (And (Own (i $a)) (Pet $a)) $tv)))
+   ((: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof distractRule6 distract6))
+       (And (Own (i max)) (Pet max))
+       (STV 0.8 0.9))
+      (: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof distractRule5 distract5))
+         (And (Own (i max)) (Pet max))
+         (STV 0.8 0.9))
+      (: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof distractRule4 distract4))
+         (And (Own (i max)) (Pet max))
+         (STV 0.8 0.9))
+      (: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof distractRule3 distract3))
+         (And (Own (i max)) (Pet max))
+         (STV 0.8 0.9))
+      (: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof distractRule2 distract2))
+         (And (Own (i max)) (Pet max))
+         (STV 0.8 0.9))
+      (: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof distractRule1 distract1))
+         (And (Own (i max)) (Pet max))
+         (STV 0.8 0.9))
+      (: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof petRule dogMax))
+         (And (Own (i max)) (Pet max))
+         (STV 0.7 0.9))
+      (: (rule-proof conjunction (rule-proof ownRule haveAnn) (rule-proof petRule dogAnn))
+         (And (Own (i ann)) (Pet ann))
+         (STV 0.7 0.9))))

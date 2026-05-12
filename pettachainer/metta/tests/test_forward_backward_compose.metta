@@ -20,18 +20,57 @@
 !(compileadd transitiveClosedKb
    (: ax-tr
       (Implication
-         (Premises (Provable (-> $psi $chi)) (Provable (-> $phi $psi)))
-         (Conclusions (Provable (-> $phi $chi))))
+         (Premises (Provable (→ $psi $chi)) (Provable (→ $phi $psi)))
+         (Conclusions (Provable (→ $phi $chi))))
       (STV 1.0 1.0)))
 
-!(compileadd transitiveClosedKb (: given-imp1 (Provable (-> (PropP) (PropQ))) (STV 1.0 1.0)))
+!(compileadd transitiveClosedKb (: given-imp1 (Provable (→ (PropP) (PropQ))) (STV 1.0 1.0)))
 
-!(compileadd transitiveClosedKb (: given-imp2 (Provable (-> (PropQ) (PropT))) (STV 1.0 1.0)))
+!(compileadd transitiveClosedKb (: given-imp2 (Provable (→ (PropQ) (PropT))) (STV 1.0 1.0)))
 
 !(test
    (not
-      (== (collapse (query 20 transitiveClosedKb (: $p (Provable (-> (PropP) (PropT))) $tv)))
+      (== (collapse (query 20 transitiveClosedKb (: $p (Provable (→ (PropP) (PropT))) $tv)))
          ()))
+   true)
+
+!(compileadd openImplicationKb (: r1 (Implication (Premises (A)) (Conclusions (B))) (STV 1.0 1.0)))
+
+!(test
+   (let (: (rule-proof r1 (ctx proof $_ctx))
+           (Implication (Premises (A)) (Conclusions (B)))
+           (STV 1.0 0.9))
+      (superpose
+         (collapse
+            (query 100 openImplicationKb
+               (: $p (Implication (Premises ($premise)) (Conclusions (B))) $tv))))
+      true)
+   true)
+
+!(compileadd openHashImplicationKb (: r2 (Implication (Premises (A)) (Conclusions (C))) (STV 1.0 0.5)))
+
+!(compileadd openHashImplicationKb (: r3 (Implication (Premises (C)) (Conclusions (B))) (STV 1.0 0.5)))
+
+!(test
+   (not
+      (== (collapse
+            (query 100 openHashImplicationKb
+               (: $p (Implication (Premises (#)) (Conclusions (B))) $tv)))
+         ()))
+   true)
+
+!(compileadd openHashPatternImplicationKb
+   (: featureRule (Implication (Premises (Feature a)) (Conclusions (Target))) (STV 1.0 0.5)))
+
+!(test
+   (let (: (rule-proof featureRule (ctx proof $_ctx))
+           (Implication (Premises (Feature #)) (Conclusions (Target)))
+           (STV 1.0 0.45))
+      (superpose
+         (collapse
+            (query 100 openHashPatternImplicationKb
+               (: $p (Implication (Premises (Feature #)) (Conclusions (Target))) $tv))))
+      true)
    true)
 
 !(compileadd composeKb (: a0 (A) (STV 1.0 1.0)))

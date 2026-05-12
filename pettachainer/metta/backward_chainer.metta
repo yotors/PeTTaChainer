@@ -169,17 +169,41 @@
          (commit-aggregate-snapshot-heap $agenda $agg-gid $result $ev)
          $agenda)))
 
-(= (direct-goal-results-view $steps (CPU $fun $args $_res)) (CPU $fun $args (cpu-call $steps $fun $args)))
+(= (direct-goal-results-view $steps (CPU $fun $args $_res))
+   (CPU $fun $args (reduce (cpu-call $steps $fun $args))))
+(= (wildcard-premise-context? $kb)
+   (if (is-expr $kb) (not (== (car-atom (cdr-atom $kb)) MAIN)) false))
+(= (wildcard-premise-context-active? $kb)
+   (not (== (collapse (once (match wildcard_premise_context ($kb) true))) ())))
+(= (wildcard-to-query-var $x) (if (== $x #) $any $x))
+(= (wildcard-premise-result $type $kb $prf $tv $stored-type)
+   (if (contains-hash? $stored-type)
+      (let $qtype (map-nested wildcard-to-query-var $stored-type)
+         (if (= $type $qtype) ($type $kb $prf $tv) (empty)))
+      (empty)))
+(= (direct-wildcard-premise-results $type $kb $prf $tv)
+   (if (and (wildcard-premise-context? $kb) (wildcard-premise-context-active? $kb))
+      (superpose
+         ((match wildcard_premise_index (wildcard_any $kb $stored-type $prf $tv)
+             (wildcard-premise-result $type $kb $prf $tv $stored-type))
+          (if (is-expr $type)
+             (let $head (car-atom $type)
+                (match wildcard_premise_index ((wildcard_premise_head $head) $kb $stored-type $prf $tv)
+                   (wildcard-premise-result $type $kb $prf $tv $stored-type)))
+             (empty))))
+      (empty)))
 (= (direct-goal-results-view $steps ($type $kb $prf $tv))
    (let $qtype (if (contains-hash? $type) (map-nested (|-> ($x) (if (== $x #) $any $x)) $type) $type)
-      (match &kb ($qtype $kb $prf $tv)
-         ($qtype $kb $prf $tv))))
+      (superpose
+         ((match &kb ($qtype $kb $prf $tv)
+             ($qtype $kb $prf $tv))
+          (direct-wildcard-premise-results $type $kb $prf $tv)))))
 
 (= (expand-direct-goal-step $gid $_goal $agenda $result)
    (let*
       (($score (term-confidence $result))
        ($ev (leaf-evidence-for-result $result))
-       ($accepted (classify-goal-proof-candidate $gid $ev $score))
+       ($accepted (classify-goal-proof-candidate $gid $result $ev $score))
        ($nagenda (commit-proof-candidate-heap $agenda $gid $accepted (leaf-result-candidate $result $ev))))
       $nagenda))
 
@@ -188,6 +212,26 @@
       (($results (collapse (direct-goal-results-view $steps $goal)))
        ($agenda1 (fold-flat (expand-direct-goal-step $gid $goal) $agenda $results)))
       (expand-rule-goal-heap $agenda1 $gid $goal)))
+
+(= (open-rule-goal? $goal)
+   (if (= $goal ($type $_kb $_prf $_tv))
+      (or (not (== (extract-vars $type) ())) (contains-hash? $type))
+      false))
+
+(= (rule-goal-head-view ($goal $parent-gid))
+   (let $key (forward-indexable-premise-key $goal)
+      (if (== $key ())
+         ()
+         (match ccls_head_index ($key $rule-id)
+            (match rules ($rule-id $goal $args)
+               ($args $goal $parent-gid))))))
+
+(= (rule-goal-view ($goal $parent-gid))
+   (if (open-rule-goal? $goal)
+      (rule-goal-head-view ($goal $parent-gid))
+      (match ccls_index ($goal $rule-id)
+         (match rules ($rule-id $goal $args)
+            ($args $goal $parent-gid)))))
 
 (= (spawn-frontier-heap $agenda $parent-gid $bundle $score $seen $rev-pids)
    (let*
@@ -199,7 +243,7 @@
                  (($pid-list (reverse $rev-pids)))
                  (commit-proof-candidate-heap $agenda
                     $parent-gid
-                    (classify-goal-proof-candidate $parent-gid $seen $score)
+                    (classify-goal-proof-candidate $parent-gid $goal $seen $score)
                     (proof-candidate (rule $goal) $score $seen $pid-list))))
            ((cons $prem $_rest)
               (let*
@@ -218,10 +262,7 @@
 (= (expand-rule-goal-heap $agenda $parent-gid $goal)
    (fold-flat expand-rule-goal-fold
       $agenda
-      (collapse
-         (match ccls_index ($goal $rule-id)
-            (match rules ($rule-id $goal $args)
-               ($args $goal $parent-gid))))))
+      (collapse (rule-goal-view ($goal $parent-gid)))))
 
 (= (expand-rule-goal-fold $agenda ($args $goal $parent-gid))
    (let*
@@ -274,8 +315,8 @@
 
 (= (chainer $steps $goal)
    (let*
-      (($_clear (foreach-flat remove-all-atoms (&goal &goal_lookup &goal_waiter &aggregate &proof)))
-       ($_reset (foreach-flat (|-> ($key) (change-state! $key 0)) (bwd_gid bwd_pid)))
+      (($_clear (foreach-flat remove-all-atoms (&goal &goal_lookup &goal_waiter &aggregate &proof &proof_live_cache &goal_live_cache)))
+       ($_reset (foreach-flat (|-> ($key) (change-state! $key 0)) (bwd_gid bwd_pid bwd_live_epoch)))
        ($root-gid (ensure-goal-at-depth $goal 0))
        ($agenda0 (schedule-goal-heap (empty_heap) 1.0 $root-gid))
        ((search-state $_steps-left $_agenda1)

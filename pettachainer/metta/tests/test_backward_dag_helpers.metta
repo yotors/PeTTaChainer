@@ -28,6 +28,12 @@
                (cons ((Creature #) (kb MAIN Nil) $prfC $tvB) (cons (CPU MpFormula ($iitv $tvB) $tvA) ()))))))
    0.5689089)
 
+(= (clear-backward-state)
+   (progn
+      (foreach-flat remove-all-atoms (() &goal &goal_lookup &goal_waiter &aggregate &proof &proof_live_cache &goal_live_cache))
+      (change-state! bwd_live_epoch 0)
+      ()))
+
 !(test
    (let*
       (($_clear (clear-backward-state))
@@ -83,3 +89,71 @@
 
 !(test (proof-term-evidence-list (rule-proof own_have (fact-ev (kb MAIN ()) i_have_max (Have (i max)))))
    ((fact-ev (kb MAIN ()) i_have_max (Have (i max)))))
+
+!(test
+   (let*
+      (($_clear (clear-backward-state))
+        ($_gidreset (change-state! bwd_gid 0))
+        ($_pidreset (change-state! bwd_pid 0))
+        ($agg-gid (ensure-goal-at-depth (CPU FoldAllCompiled dummy-agg-args $out) 0))
+        ($child-gid (ensure-goal-at-depth ((Child) (kb MAIN ()) $prf (STV 1.0 1.0)) 1))
+        ($pid-old
+           (store-proof-candidate $agg-gid
+              (leaf-result-candidate (CPU FoldAllCompiled dummy-agg-args 1) ())))
+        ($_agg1 (add-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-old)))
+        ($pid-new
+           (store-proof-candidate $agg-gid
+              (leaf-result-candidate (CPU FoldAllCompiled dummy-agg-args 2) ())))
+        ($_agg2
+           (progn
+              (remove-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-old))
+              (add-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-new))
+              (invalidate-proof-live-caches))))
+      ((proof-live? $pid-old) (proof-live? $pid-new)))
+   (false true))
+
+!(test
+   (let*
+      (($_clear (clear-backward-state))
+        ($_gidreset (change-state! bwd_gid 0))
+        ($_pidreset (change-state! bwd_pid 0))
+        ($agg-gid (ensure-goal-at-depth (CPU FoldAllCompiled dummy-agg-args $out) 0))
+        ($child-gid (ensure-goal-at-depth ((Child) (kb MAIN ()) $prf (STV 1.0 1.0)) 1))
+        ($pid-old
+           (store-proof-candidate $agg-gid
+              (leaf-result-candidate (CPU FoldAllCompiled dummy-agg-args 1) ())))
+        ($_agg1 (add-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-old)))
+        ($pid-new
+           (store-proof-candidate $agg-gid
+              (leaf-result-candidate (CPU FoldAllCompiled dummy-agg-args 2) ())))
+        ($_agg2
+           (progn
+              (remove-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-old))
+              (add-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-new))
+              (invalidate-proof-live-caches))))
+      (waiter-live? (frontier-waiter 99 bundle 1.0 () ($pid-old))))
+   false)
+
+!(test
+   (let*
+      (($_clear (clear-backward-state))
+        ($_gidreset (change-state! bwd_gid 0))
+        ($_pidreset (change-state! bwd_pid 0))
+        ($agg-gid (ensure-goal-at-depth (CPU FoldAllCompiled dummy-agg-args $out) 0))
+        ($child-gid (ensure-goal-at-depth ((Child) (kb MAIN ()) $prf (STV 1.0 1.0)) 1))
+        ($pid-old
+           (store-proof-candidate $agg-gid
+              (leaf-result-candidate (CPU FoldAllCompiled dummy-agg-args 1) ())))
+        ($_agg1 (add-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-old)))
+        ($_prime-proof (proof-live? $pid-old))
+        ($_prime-goal (goal-live-proof-ids $agg-gid))
+        ($pid-new
+           (store-proof-candidate $agg-gid
+              (leaf-result-candidate (CPU FoldAllCompiled dummy-agg-args 2) ())))
+        ($_invalidate (invalidate-proof-live-caches))
+        ($_agg2
+           (progn
+              (remove-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-old))
+              (add-atom &aggregate ($agg-gid $child-gid dummy-agg-args 1.0 0.0 $pid-new)))))
+      ((proof-live? $pid-old) (proof-live? $pid-new) (length (goal-live-proof-ids $agg-gid))))
+   (false true 1))

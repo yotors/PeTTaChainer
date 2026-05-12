@@ -1,8 +1,8 @@
 !(import! &self petta_chainer)
 
-!(compileadd kb (: d1 (Dog fido) (STV 1.0 0.5)))
+!(compileadd-mine kb (: d1 (Dog fido) (STV 1.0 0.5)))
 
-!(compileadd kb (: t1 (HasTail fido) (STV 1.0 0.5)))
+!(compileadd-mine kb (: t1 (HasTail fido) (STV 1.0 0.5)))
 
 !(test
    (match &mining_stats (ind-impl-stats kb (Dog (V 1)) (HasTail (V 1)) $a $b)
@@ -30,9 +30,9 @@
       0.5
       0.0))
 
-!(compileadd kb (: d2 (Dog spot) (STV 1.0 0.5)))
+!(compileadd-mine kb (: d2 (Dog spot) (STV 1.0 0.5)))
 
-!(compileadd kb (: t2 (HasTail spot) (STV 0.0 0.5)))
+!(compileadd-mine kb (: t2 (HasTail spot) (STV 0.0 0.5)))
 
 !(test
    (match &mining_stats (ind-impl-stats kb (Dog (V 1)) (HasTail (V 1)) $a $b)
@@ -60,9 +60,9 @@
       0.5
       0.0))
 
-!(compileadd kb (: o1 (Owns alice dog) (STV 1.0 1.0)))
+!(compileadd-mine kb (: o1 (Owns alice dog) (STV 1.0 1.0)))
 
-!(compileadd kb (: o2 (Owns alice cat) (STV 1.0 1.0)))
+!(compileadd-mine kb (: o2 (Owns alice cat) (STV 1.0 1.0)))
 
 !(test
    (match &mining_stats (ind-impl-stats kb (Owns (V 1) dog) (Owns (V 1) cat) $a $b)
@@ -97,7 +97,8 @@
       ok)
    ())
 
-!(compileadd kb (: o3 (Owns bob dog) (STV 1.0 1.0)))
+!(compileadd-mine kb (: o3 (Owns bob dog) (STV 1.0 1.0)))
+!(materialize-mined-implications kb)
 
 !(test
    (match rules
@@ -106,9 +107,10 @@
       (if (is-member (: (kb MAIN ()) $prf (Owns $x dog) $tvin) $args) ok fail))
    ())
 
-!(compileadd kb2 (: o1 (Owns alice dog) (STV 1.0 1.0)))
+!(compileadd-mine kb2 (: o1 (Owns alice dog) (STV 1.0 1.0)))
 
-!(compileadd kb2 (: o2 (Owns alice cat) (STV 1.0 1.0)))
+!(compileadd-mine kb2 (: o2 (Owns alice cat) (STV 1.0 1.0)))
+!(materialize-mined-implications kb2)
 
 !(test
    (collapse

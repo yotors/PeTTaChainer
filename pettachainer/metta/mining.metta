@@ -5,6 +5,28 @@
 !(import_prolog_function (superpose (empty_assoc put_assoc get_assoc)))
 
 !(bind! &mining_stats (new-space))
+!(bind! &mining_index (new-space))
+
+(= (pattern-mining-on-add-key $kb) (atom_concat mining_on_add_ $kb))
+
+(= (set-pattern-mining-on-add $kb $enabled) (change-state! (pattern-mining-on-add-key $kb) $enabled))
+(= (enable-pattern-mining-on-add $kb) (set-pattern-mining-on-add $kb true))
+(= (disable-pattern-mining-on-add $kb) (set-pattern-mining-on-add $kb false))
+
+(= (pattern-mining-on-add-enabled? $kb)
+   (let $menabled (catch (get-state (pattern-mining-on-add-key $kb)))
+      (if-error $menabled false $menabled)))
+
+(= (process-on-add-items $kb (: $prf $type $tv)) (process-on-add $kb (: $prf $type $tv)))
+(= (process-on-add-items $kb ()) ())
+(= (process-on-add-items $kb (cons $stmt $rest))
+   (progn (process-on-add-items $kb $stmt) (process-on-add-items $kb $rest)))
+(= (process-on-add-items $kb $_other) ())
+
+(= (maybe-process-on-add $kb $stmt)
+   (if (pattern-mining-on-add-enabled? $kb)
+      (let $_ (collapse (process-on-add-items $kb $stmt)) ())
+      ()))
 
 (= (shared-objects () $argsb) ())
 (= (shared-objects (cons $h $t) $argsb)
@@ -60,7 +82,7 @@
            ($type (Implication (Premises $prem) (Conclusions $conc)))
            ($stmt (: (mined_implication $premk $conck) $type (STV $s $c)))
            ($_ (clear-mined-implication-rules $kb $premk $conck)))
-         (compileadd $kb $stmt))))
+         (let $_ (collapse (compileadd $kb $stmt)) ()))))
 
 (= (update-directional-by-key $kb $premk $conck $sa $ca $sb $cb)
    (let*
@@ -87,18 +109,17 @@
         ((terms $premba $concba) (generalized-terms-key $pb $argsb $pa $argsa)))
       (if (and (== $premab $concab) (== $premba $concba)) (empty)
          (superpose (
-              (let (ab $alpha $beta) (update-directional-by-key $kb $premab $concab $sa $ca $sb $cb)
-                 (emit-mined-implication $kb
-                    $premab
-                    $concab
-                    $alpha
-                    $beta))
-              (let (ab $alpha $beta) (update-directional-by-key $kb $premba $concba $sb $cb $sa $ca)
-                 (emit-mined-implication $kb
-                    $premba
-                    $concba
-                    $alpha
-                    $beta)))))))
+              (update-directional-by-key $kb $premab $concab $sa $ca $sb $cb)
+              (update-directional-by-key $kb $premba $concba $sb $cb $sa $ca))))))
+
+(= (materialize-mined-implications $kb)
+   (collapse
+      (match &mining_stats (ind-impl-stats $kb $premk $conck $alpha $beta)
+         (emit-mined-implication $kb
+            $premk
+            $conck
+            $alpha
+            $beta))))
 
 (= (seen-pair? $stmtid $cid) (not (== (collapse (once (match &kb (ind-seen-pair $stmtid $cid) ok))) ())))
 
@@ -146,11 +167,12 @@
       (if (and (and (not (is-expr $prf)) (is-expr $type)) (= $tv (STV $s $c)))
          (let*
             (($pa (car-atom $type))
-              ($args (cdr-atom $type)))
+              ($args (cdr-atom $type))
+              ($indexed-args (list_to_set $args)))
             (superpose (
-                 (let $_ (foldl-atom $args (minectx $kb $prf $pa $args $tv) mine-arg-step)
+                 (let $_ (foldl-atom $indexed-args (minectx $kb $prf $pa $args $tv) mine-arg-step)
                     (collapse
                        (match &kb (ind-seen-pair $prf $cid)
                           (remove-atom &kb (ind-seen-pair $prf $cid)))))
-                 (foldl-atom $args (idxctx $kb $prf $pa $args $tv) index-arg-step))))
+                 (foldl-atom $indexed-args (idxctx $kb $prf $pa $args $tv) index-arg-step))))
          ())))

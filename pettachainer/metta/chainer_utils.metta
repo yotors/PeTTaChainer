@@ -1,6 +1,7 @@
 (= (tv-confidence $tv) (if (is-var $tv) 1.0 (if (= $tv (STV $_s $c)) (if (is-var $c) 1.0 $c) 1.0)))
 
-(= (goal-has-type-vars? ($type ($_kbid $_ctx $_vars) $_prf $_tv)) (not (== (extract-vars $type) ())))
+(= (goal-has-type-vars? ($type ($_kbid $_ctx $vars) $_prf $_tv))
+   (or (not (== (extract-vars $type) ())) (not (== $vars Nil))))
 (= (goal-has-type-vars? (CPU $_fun $_args $_res)) false)
 
 (= (goal-key ($type ($kbid $ctx $vars) $_prf $_tv))

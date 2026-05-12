@@ -79,6 +79,15 @@
 
 !(test (let $_ (forward-chain 1 deltakb) (forward-has-derived? deltakb (DeltaGoal))) true)
 
+!(compileadd selectedkb (: highFact (HighPriority) (STV 1.0 1.0)))
+
+!(compileadd selectedkb (: lowFact (LowPriority) (STV 1.0 0.8)))
+
+!(compileadd selectedkb
+   (: lowToGoal (Implication (Premises (LowPriority)) (Conclusions (SelectedGoal))) (STV 1.0 1.0)))
+
+!(test (let $_ (forward-chain-from 1 selectedkb (LowPriority)) (forward-has-derived? selectedkb (SelectedGoal))) true)
+
 !(compileadd ruleaddkb (: oldSeed (RuleSeed) (STV 1.0 1.0)))
 
 !(test (let $_ (forward-chain 1 ruleaddkb) (forward-has-derived? ruleaddkb (RuleAddGoal))) false)
@@ -93,7 +102,7 @@
 !(compileadd dedupekb
    (: dedupeRule (Implication (Premises (DedupeSeed)) (Conclusions (DedupeGoal))) (STV 1.0 0.5)))
 
-!(test (heap_size (get-state fwd_agenda_dedupekb)) 1)
+!(test (forward-agenda-dirty? dedupekb) true)
 
 !(test
    (let*

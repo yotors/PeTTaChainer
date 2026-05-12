@@ -5,7 +5,7 @@ import sys
 import threading
 import traceback
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import __main__
 
 from petta import PeTTa
@@ -30,7 +30,7 @@ def get_language_spec(llm_focused: bool = True) -> str:
     return (Path(__file__).resolve().parent / ("LLM_RULE_SPEC.md" if llm_focused else "LANGUAGE_SPEC.md")).read_text(encoding="utf-8")
 
 
-def _query_worker(added_atoms: List[str], kb: str, steps: int, atom: str, conn):
+def _query_worker(added_atoms: List[Tuple[str, bool]], kb: str, steps: int, atom: str, conn):
     try:
         handler = PeTTaChainer()
         handler.kb = kb
@@ -53,7 +53,8 @@ class PeTTaChainer:
         global LOADEDLIB
         self.handler = PeTTa()
         self.kb = f"kb{uuid.uuid4().hex}"
-        self._added_atoms: List[str] = []
+        self._added_atoms: List[Tuple[str, bool]] = []
+        self._pattern_mining_on_add = False
         base_dir = Path(__file__).resolve().parent
 
         if LOADEDLIB:
@@ -81,19 +82,40 @@ class PeTTaChainer:
                 f"Invalid evaluated PLN {kind}. input={raw_atom} evaluated={evaluated_atom}"
             )
 
-    def add_atom(self, atom: str) -> str:
+    def set_pattern_mining_on_add(self, enabled: bool) -> None:
+        value = "true" if enabled else "false"
+        self.handler.process_metta_string(f"!(set-pattern-mining-on-add {self.kb} {value})")
+        self._pattern_mining_on_add = enabled
+
+    def enable_pattern_mining_on_add(self) -> None:
+        self.set_pattern_mining_on_add(True)
+
+    def disable_pattern_mining_on_add(self) -> None:
+        self.set_pattern_mining_on_add(False)
+
+    def materialize_mined_implications(self) -> str:
+        return self.handler.process_metta_string(f"!(materialize-mined-implications {self.kb})")
+
+    def add_atom(self, atom: str, mine_patterns: Optional[bool] = None) -> str:
         evaluated_atom = self._evaluate(atom)
         self._validate("statement", atom, evaluated_atom, check_stmt)
-        result = self.handler.process_metta_string(f"!(compileadd {self.kb} {evaluated_atom})")
-        self._added_atoms.append(evaluated_atom)
+        effective_mining = self._pattern_mining_on_add if mine_patterns is None else mine_patterns
+        compile_fun = "compileadd-mine" if effective_mining else "compileadd"
+        result = self.handler.process_metta_string(f"!({compile_fun} {self.kb} {evaluated_atom})")
+        self._added_atoms.append((evaluated_atom, effective_mining))
         return result
 
-    def add_atoms_no_check(self, atoms: List[str]) -> str:
-        adds = [f"(compileadd {self.kb} {atom})" for atom in atoms]
+    def add_atoms_no_check(self, atoms: List[str] | List[Tuple[str, bool]], mine_patterns: Optional[bool] = None) -> str:
+        if atoms and isinstance(atoms[0], tuple):
+            entries = atoms
+        else:
+            effective_mining = self._pattern_mining_on_add if mine_patterns is None else mine_patterns
+            entries = [(atom, effective_mining) for atom in atoms]
+        adds = [f"({'compileadd-mine' if use_mining else 'compileadd'} {self.kb} {atom})" for atom, use_mining in entries]
         result = self.handler.process_metta_string(
             f"!(superpose ({' '.join(adds)}))"
         )
-        self._added_atoms.extend(atoms)
+        self._added_atoms.extend(entries)
         return result
 
     evaluate_statement = _evaluate
@@ -102,6 +124,14 @@ class PeTTaChainer:
     def print_kb(self):
         for atom in _as_list(self.handler.process_metta_string(f"!(match &kb $a (pretty $a))")):
             print(atom)
+
+    def forward_chain(self, steps: int = 100, term: Optional[str] = None):
+        if term is None:
+            return self.handler.process_metta_string(f"!(forward-chain {steps} {self.kb})")
+        evaluated_term = self._evaluate(term)
+        return self.handler.process_metta_string(
+            f"!(forward-chain-from {steps} {self.kb} {evaluated_term})"
+        )
 
     def query(self, atom: str, steps: int = 100, timeout_sec: Optional[float] = 10) -> List[str]:
         evaluated_query = self._evaluate(atom)

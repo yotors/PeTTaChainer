@@ -15,17 +15,41 @@
    (let $key (forward-indexable-premise-key $prem)
       (progn (if (== $key ()) () (kb-add-atom $backend prem_index ($key $prem $id $idx))) (+ $idx 1))))
 
+(= (kb-add-ccl-head-index $backend $id $ccls)
+   (let $key (forward-indexable-premise-key $ccls)
+      (if (== $key ()) () (kb-add-atom $backend ccls_head_index ($key $id)))))
+
+(= (wildcard-premise-index-key $type)
+   (if (is-var $type) ()
+      (if (contains-hash? $type)
+         (if (is-expr $type)
+            (let $head (car-atom $type) (if (== $head #) wildcard_any (wildcard_premise_head $head)))
+            wildcard_any)
+         ())))
+
+(= (kb-add-wildcard-premise-index $backend $expr)
+   (if (= $expr ($type $kb $prf $tv))
+      (let $key (wildcard-premise-index-key $type)
+         (if (== $key ()) ()
+            (progn
+               (kb-add-atom $backend wildcard_premise_context ($kb))
+               (kb-add-atom $backend wildcard_premise_index ($key $kb $type $prf $tv)))))
+      ()))
+
 (= (kb-add-expr $backend $expr)
    (if (= $expr (rules ($args |- $ccls)))
       (let*
          (($id (if (== $backend live) (next-search-id ruleid) (next-search-id bwd_tmp_ruleid)))
            ($_1 (fold-flat (kb-add-prem $backend $id) 0 $args))
            ($_2 (kb-add-atom $backend ccls_index ($ccls $id)))
-           ($_3 (kb-add-atom $backend rules ($id $ccls $args)))
-           ($_4 (if (== $backend live) (forward-register-added-rule $args $ccls) ())))
+           ($_3 (kb-add-ccl-head-index $backend $id $ccls))
+           ($_4 (kb-add-atom $backend rules ($id $ccls $args)))
+           ($_5 (if (== $backend live) (mark-forward-agenda-dirty $ccls) ())))
          ())
-      (progn (kb-add-atom $backend &kb $expr)
-         (if (== $backend live) (forward-register-added-expr $expr) ()))))
+      (progn
+         (kb-add-atom $backend &kb $expr)
+         (kb-add-wildcard-premise-index $backend $expr)
+         (if (== $backend live) (mark-forward-agenda-dirty $expr) ()))))
 
 (= (clear-temp-query-adds)
    (progn
