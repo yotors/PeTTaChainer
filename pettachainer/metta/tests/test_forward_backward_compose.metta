@@ -17,6 +17,23 @@
       true)
    true)
 
+!(compileadd transitiveClosedKb
+   (: ax-tr
+      (Implication
+         (Premises (Provable (-> $psi $chi)) (Provable (-> $phi $psi)))
+         (Conclusions (Provable (-> $phi $chi))))
+      (STV 1.0 1.0)))
+
+!(compileadd transitiveClosedKb (: given-imp1 (Provable (-> (PropP) (PropQ))) (STV 1.0 1.0)))
+
+!(compileadd transitiveClosedKb (: given-imp2 (Provable (-> (PropQ) (PropT))) (STV 1.0 1.0)))
+
+!(test
+   (not
+      (== (collapse (query 20 transitiveClosedKb (: $p (Provable (-> (PropP) (PropT))) $tv)))
+         ()))
+   true)
+
 !(compileadd composeKb (: a0 (A) (STV 1.0 1.0)))
 
 !(compileadd composeKb (: r1 (Implication (Premises (A)) (Conclusions (B))) (STV 1.0 1.0)))

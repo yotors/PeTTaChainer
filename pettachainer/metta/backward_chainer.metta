@@ -8,7 +8,11 @@
    (let*
       (($stored-goal (copy_term $goal))
        ($goal-key (goal-key $stored-goal))
-       ($hits (collapse (once (match &goal_lookup ($goal-key $gid) $gid)))))
+       ($hits
+          (collapse
+             (once
+                (match &goal_lookup ($stored-key $gid)
+                   (if (=alpha $stored-key $goal-key) $gid (empty)))))))
       (if (== $hits ())
          (let*
             (($gid (next-gid))
@@ -64,9 +68,18 @@
 (= (aggregate-finish identity $acc) $acc)
 (= (aggregate-finish dist-average $acc) (reduce (reduce (DistAverageFromSumCount $acc))))
 
-(= (advance-frontier-bundle (and-bundle $_goal ()) $_pid) ())
-(= (advance-frontier-bundle (and-bundle $goal (cons $prem $rest)) $pid)
-   (if (= $prem (proof-output-atom $pid)) (and-bundle $goal $rest) ()))
+(= (make-and-bundle $goal $args) (cons and-bundle (cons $goal $args)))
+(= (and-bundle-goal $bundle) (car-atom (cdr-atom $bundle)))
+(= (and-bundle-premises $bundle) (cdr-atom (cdr-atom $bundle)))
+
+(= (advance-frontier-bundle $bundle $pid)
+   (let*
+      (($goal (and-bundle-goal $bundle))
+       ($premises (and-bundle-premises $bundle)))
+      (case $premises (
+           (() ())
+           ((cons $prem $rest)
+              (if (= $prem (proof-output-atom $pid)) (make-and-bundle $goal $rest) ()))))))
 
 (= (waiter-live? (frontier-waiter $_parent-gid $_bundle $_score $_seen $rev-pids))
    (proof-list-live? $rev-pids))
@@ -177,27 +190,30 @@
       (expand-rule-goal-heap $agenda1 $gid $goal)))
 
 (= (spawn-frontier-heap $agenda $parent-gid $bundle $score $seen $rev-pids)
-   (case $bundle (
-        ((and-bundle $goal ())
-           (let*
-              (($pid-list (reverse $rev-pids)))
-              (commit-proof-candidate-heap $agenda
-                 $parent-gid
-                 (classify-goal-proof-candidate $parent-gid $seen $score)
-                 (proof-candidate (rule $goal) $score $seen $pid-list))))
-        ((and-bundle $_goal (cons $prem $_rest))
-           (let*
-              ((($parent-depth $_goal1 $_expanded $_pending) (goal-by-id $parent-gid))
-               ($gid (ensure-goal-at-depth $prem (+ 1 $parent-depth)))
-               ($stored-bundle (copy_term $bundle)))
-              (spawn-frontier-goal-heap $agenda
-                 $score
-                 $gid
-                 (frontier-waiter $parent-gid
-                    $stored-bundle
+   (let*
+      (($goal (and-bundle-goal $bundle))
+       ($premises (and-bundle-premises $bundle)))
+      (case $premises (
+           (()
+              (let*
+                 (($pid-list (reverse $rev-pids)))
+                 (commit-proof-candidate-heap $agenda
+                    $parent-gid
+                    (classify-goal-proof-candidate $parent-gid $seen $score)
+                    (proof-candidate (rule $goal) $score $seen $pid-list))))
+           ((cons $prem $_rest)
+              (let*
+                 ((($parent-depth $_goal1 $_expanded $_pending) (goal-by-id $parent-gid))
+                  ($gid (ensure-goal-at-depth $prem (+ 1 $parent-depth)))
+                  ($stored-bundle (copy_term $bundle)))
+                 (spawn-frontier-goal-heap $agenda
                     $score
-                    $seen
-                    $rev-pids)))))))
+                    $gid
+                    (frontier-waiter $parent-gid
+                       $stored-bundle
+                       $score
+                       $seen
+                       $rev-pids))))))))
 
 (= (expand-rule-goal-heap $agenda $parent-gid $goal)
    (fold-flat expand-rule-goal-fold
@@ -210,7 +226,7 @@
 (= (expand-rule-goal-fold $agenda ($args $goal $parent-gid))
    (let*
       (($bound (premises-expected-confidence $args))
-       ($bundle (copy_term (and-bundle $goal $args))))
+       ($bundle (copy_term (make-and-bundle $goal $args))))
       (spawn-frontier-heap $agenda
          $parent-gid
          $bundle
