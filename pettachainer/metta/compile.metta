@@ -183,10 +183,20 @@
                         (compile-adapter-chain plain (: $kb $prfa $exec-type $atv))))
             (empty)))))
 
+(= (add-query-add-to-ctx $expr) (add-atom ctx $expr))
+
 (= (lower-source-premise-non-open $kb $ctx $vars $premise)
    (if (compound-source? $premise)
       (let (cons $head $tail) $premise (compound-premise-bundle $kb $ctx $vars $head $tail))
       (case $premise (
+           ((Implication (cons Premises $_premises) (cons Conclusions $_conclusions))
+              (let*
+                 (((compiled-query ($goal-type $goal-kb $goal-prf $goal-tv) $adds)
+                      (mm2compileQuery $kb (: $prf $premise $tv)))
+                   ($egoal (externalize-proof-structure ($goal-type $goal-kb $goal-prf $goal-tv)))
+                   ($eadds (map-flat externalize-proof-structure $adds))
+                   ($_ (foreach-flat add-query-add-to-ctx $eadds)))
+                 (bundle-from-execs ($egoal) $goal-tv $goal-prf)))
            ((Compute $f $args -> $res)
               (bundle-from-execs ((CPU $f $args $res)) (cpu-premise-tv $f $args $res) cpu))
            ((Compute $f $args $res)
