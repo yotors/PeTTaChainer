@@ -58,13 +58,13 @@
          (clear-proof-live-caches))))
 
 (= (cache-proof-live! $pid $alive)
-   (add-atom &proof_live_cache ((proof-live-cache-epoch) $pid $alive)))
+   (chainer-add-atom &proof_live_cache ((proof-live-cache-epoch) $pid $alive)))
 
 (= (cached-proof-live? $pid)
    (match &proof_live_cache ((proof-live-cache-epoch) $pid $alive) $alive))
 
 (= (goal-live-cache-store! $gid $pids)
-   (add-atom &goal_live_cache ((proof-live-cache-epoch) $gid $pids)))
+   (chainer-add-atom &goal_live_cache ((proof-live-cache-epoch) $gid $pids)))
 
 (= (goal-live-cache-remove! $gid $pids)
    (remove-atom &goal_live_cache ((proof-live-cache-epoch) $gid $pids)))
@@ -175,7 +175,7 @@
    (let*
       (($pid (next-pid))
         ($output (proof-output-atom-kind $kind $pid))
-        ($_1 (add-atom &proof ($pid $gid $output $kind $score $ev $children)))
+        ($_1 (chainer-add-atom &proof ($pid $gid $output $kind $score $ev $children)))
         ($_2 (cache-proof-live! $pid true))
         ($_3 (append-goal-live-cache! $gid $pid)))
       $pid))
@@ -238,7 +238,7 @@
        ($_set
           (progn
              (remove-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $current-pid))
-             (add-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $pid))))
+             (chainer-add-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $pid))))
        ($_cache-invalidate (invalidate-proof-live-caches))
        ($nagenda (wake-proof-commit-heap $agenda $agg-gid $pid)))
       $nagenda))

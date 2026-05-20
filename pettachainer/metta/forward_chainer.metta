@@ -115,7 +115,7 @@
         ($hits (collapse (match &kb ($type $kb $prfo $tvo) ($type $kb $prfo $tvo))))
         ($_ (foreach-flat (|-> ($old-fact) (remove-atom &kb $old-fact)) $hits))
         ($merged-fact (fold-flat merge-proof-atoms $fact $hits))
-        ($_ (add-atom &kb $merged-fact)))
+        ($_ (chainer-add-atom &kb $merged-fact)))
       (if (== $hits ()) (agenda-push-fact-best $agenda $merged-fact) $agenda)))
 
 (= (forward-rule-results-for-key $steps $kb $fact $key)

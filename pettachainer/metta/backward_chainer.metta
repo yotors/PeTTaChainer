@@ -16,8 +16,8 @@
       (if (== $hits ())
          (let*
             (($gid (next-gid))
-             ($_1 (add-atom &goal ($gid $depth $stored-goal false 0.0)))
-             ($_2 (add-atom &goal_lookup ($goal-key $gid))))
+             ($_1 (chainer-add-atom &goal ($gid $depth $stored-goal false 0.0)))
+             ($_2 (chainer-add-atom &goal_lookup ($goal-key $gid))))
             $gid)
          (car-atom $hits))))
 
@@ -33,7 +33,7 @@
                 ($nagenda (add_to_heap $agenda $priority (qgoal $score $gid)))
                 ($_set
                    (progn (remove-atom &goal ($gid $depth $goal $expanded $current))
-                      (add-atom &goal ($gid $depth $goal $expanded $score)))))
+                      (chainer-add-atom &goal ($gid $depth $goal $expanded $score)))))
                $nagenda)))))
 
 (= (schedule-aggregate-heap $agenda $agg-gid)
@@ -47,7 +47,7 @@
              ($_set
                 (progn
                    (remove-atom &aggregate ($agg-gid $child-gid $args $base-score $current $current-pid))
-                   (add-atom &aggregate ($agg-gid $child-gid $args $base-score $base-score $current-pid)))))
+                   (chainer-add-atom &aggregate ($agg-gid $child-gid $args $base-score $base-score $current-pid)))))
             $nagenda))))
 
 (=
@@ -107,7 +107,7 @@
 
 (= (spawn-frontier-goal-heap $agenda $score $gid $waiter)
    (let*
-      (($_1 (add-atom &goal_waiter ($gid $waiter)))
+      (($_1 (chainer-add-atom &goal_waiter ($gid $waiter)))
        ($agenda1
           (fold-flat (|-> ($acc $pid) (advance-frontier-waiter-heap $acc $waiter $pid))
              $agenda
@@ -124,9 +124,9 @@
        ($hits (collapse (once (match &aggregate ($agg-gid $_child $_args $_base $_pending1 $_current) true))))
        ($_agg
           (if (== $hits ())
-             (add-atom &aggregate ($agg-gid $child-gid $args $score 0.0 ()))
+             (chainer-add-atom &aggregate ($agg-gid $child-gid $args $score 0.0 ()))
              ()))
-       ($_wait (add-atom &goal_waiter ($child-gid (aggregate-waiter $agg-gid))))
+       ($_wait (chainer-add-atom &goal_waiter ($child-gid (aggregate-waiter $agg-gid))))
        ($agenda1 (schedule-goal-heap $agenda $score $child-gid))
        ($nagenda (schedule-aggregate-heap $agenda1 $agg-gid)))
       $nagenda))
@@ -161,7 +161,7 @@
        ($_clear
           (progn
              (remove-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $current-pid))
-             (add-atom &aggregate ($agg-gid $child-gid $args $base-score 0.0 $current-pid))))
+             (chainer-add-atom &aggregate ($agg-gid $child-gid $args $base-score 0.0 $current-pid))))
        ((aggregate-state $acc $ev $_seen) (aggregate-final-state $child-gid $args))
        (($kb $pattern $extractor $init $fun $finish $tv-mode) $args)
        ($result (CPU FoldAllCompiled $args (aggregate-finish $finish $acc))))
@@ -280,7 +280,7 @@
       ((($depth $goal $expanded $pending) (goal-by-id $gid))
        ($_expand
           (progn (remove-atom &goal ($gid $depth $goal $expanded $pending))
-             (add-atom &goal ($gid $depth $goal true $pending))))
+             (chainer-add-atom &goal ($gid $depth $goal true $pending))))
        ($nagenda0
           (if (and (= $goal (CPU $fun $_args $_res)) (== $fun FoldAllCompiled))
              (spawn-aggregate-goal-heap $agenda $score $gid $goal)
@@ -295,7 +295,7 @@
          (let*
             (($_clear
                  (progn (remove-atom &goal ($gid $depth $goal $expanded $pending))
-                    (add-atom &goal ($gid $depth $goal $expanded 0.0))))
+                    (chainer-add-atom &goal ($gid $depth $goal $expanded 0.0))))
              ($nagenda (expand-goal-heap $agenda $steps $score $gid)))
             (search-agenda-heap (- $steps 1) $nagenda))
          (search-agenda-heap $steps $agenda))))

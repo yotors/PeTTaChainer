@@ -56,6 +56,11 @@
 (= (foreach-flat $f ()) ())
 (= (foreach-flat $f (cons $x $xs)) (progn ($f $x) (foreach-flat $f $xs)))
 
+(= (chainer-add-atom $space $expr)
+   (if (== (collapse (callPredicate (Predicate (cyclic_term $expr)))) ())
+      (add-atom $space $expr)
+      (empty)))
+
 (= (contains-hash? $x) (fold-nested (|-> ($acc $elem) (or (== $elem #) $acc)) false $x))
 
 (= (next-search-id $key)
