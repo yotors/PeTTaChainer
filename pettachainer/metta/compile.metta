@@ -450,11 +450,6 @@
       ((() |- ((: ($kbid $ctx $mvars) $ctxprf $type $tv))))
       (query-context-assumed-implication-rules $kbid $ctx $mvars $ctxprf $type $tv)))
 
-(= (query-context-premise-internal-assumption-adds $kbid $ctx $mvars $ctxprf $type $tv)
-   (append
-      ((() |- (($type ($kbid $ctx $mvars) $ctxprf $tv))))
-      (query-context-assumed-implication-rules $kbid $ctx $mvars $ctxprf $type $tv)))
-
 (= (query-context-premise-adds-step $kbid $ctx $mvars ($idx $adds) $premise)
    (let $ctxprf (if (== $idx 0) (ctx proof $ctx) (ctx proof $ctx $idx))
       (if (= $premise (CPU $_fun $_args $_res))
@@ -462,10 +457,7 @@
          (if (= $premise (: $_kb $_prf $type $_tv))
             ((+ $idx 1)
                (append $adds (query-context-premise-assumption-adds $kbid $ctx $mvars $ctxprf $type (STV 1.0 1.0))))
-            (if (= $premise ($type $_kb $_prf $_tv))
-               ((+ $idx 1)
-                  (append $adds (query-context-premise-internal-assumption-adds $kbid $ctx $mvars $ctxprf $type (STV 1.0 1.0))))
-               ($idx $adds))))))
+            ($idx $adds)))))
 
 (= (query-context-premise-adds $kbid $ctx $mvars $premises)
    (let*
