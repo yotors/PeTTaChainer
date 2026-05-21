@@ -313,6 +313,19 @@
 
 (= (kbctx $kb) (if (is-expr $kb) $kb ($kb MAIN Nil)))
 
+(= (context-polymorphic-facts-key $kb) (atom_concat context_polymorphic_facts_ $kb))
+
+(= (set-context-polymorphic-facts $kb $enabled)
+   (change-state! (context-polymorphic-facts-key $kb) $enabled))
+
+(= (context-polymorphic-facts? $kb)
+   (let $menabled (catch (get-state (context-polymorphic-facts-key $kb)))
+      (if-error $menabled false $menabled)))
+
+(= (compile-fact-kb $kb)
+   (if (is-expr $kb) $kb
+      (if (context-polymorphic-facts? $kb) ($kb $ctx $vars) ($kb MAIN Nil))))
+
 (= (map-nested2 $f ()) ())
 (= (map-nested2 $f (cons $x $xs))
    (if (is-expr $x) ($f (cons (map-nested2 $f $x) (map-nested2 $f $xs)))
@@ -370,8 +383,9 @@
                  (if (or $skip-inverse (is-var $na)) (empty)
                     (compile-outputs (: ((inverted $prf $pa $pb1) $pb2) $na $natv)))
                  (if (or $skip-inverse (is-var $b)) (empty) (compile-adapter-chain plain (: $pb2 $b $btv2))))))
-         (superpose ((() |- ((: ($kb MAIN Nil) $prf $Type $tv)))
-                     (compile-outputs (: ($kb MAIN Nil) $prf $Type $tv)))))))
+         (let $fact-kb (compile-fact-kb $kb)
+            (superpose ((() |- ((: $fact-kb $prf $Type $tv)))
+                        (compile-outputs (: $fact-kb $prf $Type $tv))))))))
 
 
 (= (compileQuery $kb (: $prf $Type $tv))

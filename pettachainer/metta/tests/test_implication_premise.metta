@@ -67,3 +67,47 @@
                   $tv)))
          ()))
    true)
+
+!(set-context-polymorphic-facts kbRelativeImplicationQueryKb true)
+
+!(compileadd kbRelativeImplicationQueryKb (: b (B) (STV 1.0 1.0)))
+
+!(compileadd kbRelativeImplicationQueryKb
+   (: ab_c
+      (Implication
+         (Premises
+            (A)
+            (B))
+         (Conclusions
+            (C)))
+      (STV 1.0 1.0)))
+
+!(test
+   (not
+      (== (collapse
+            (query 60 kbRelativeImplicationQueryKb
+               (: $prf (Implication (Premises (A)) (Conclusions (C))) $tv)))
+         ()))
+   true)
+
+!(test
+   (not
+      (== (collapse
+            (query 10 kbRelativeImplicationQueryKb (: $prf (B) $tv)))
+         ()))
+   true)
+
+!(compileadd (contextualFactsKb LOCAL Nil) (: local-fact (LocalFact) (STV 1.0 1.0)))
+
+!(test
+   (== (collapse
+         (query 10 contextualFactsKb (: $prf (LocalFact) $tv)))
+      ())
+   true)
+
+!(test
+   (not
+      (== (collapse
+            (query 10 (contextualFactsKb LOCAL Nil) (: $prf (LocalFact) $tv)))
+         ()))
+   true)
