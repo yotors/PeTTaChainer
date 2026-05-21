@@ -53,3 +53,17 @@
                (: $prf (Implication (Premises (A) (B)) (Conclusions (C))) $tv))))
       true)
    true)
+
+!(test
+   (not
+      (== (collapse
+            (query 60 implicationPremiseKb
+               (: $prf
+                  (Implication
+                     (Premises
+                        (Implication (Premises (A)) (Conclusions (B)))
+                        (A))
+                     (Conclusions (B)))
+                  $tv)))
+         ()))
+   true)
