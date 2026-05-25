@@ -70,6 +70,22 @@ class TestPeTTaChainer(unittest.TestCase):
 
         self.assertEqual(result, ["false"])
 
+    def test_default_logic_keeps_pln_or_semantics(self):
+        handler = PeTTaChainer()
+        handler.add_atom("(: a (A) (STV 1.0 1.0))")
+
+        proofs = handler.query("(: $prf (Or (A) (B)) $tv)", steps=20)
+
+        self.assertEqual(proofs, [])
+
+    def test_predicate_logic_config_or_introduction(self):
+        handler = PeTTaChainer(logic_config="predicate_logic")
+        handler.add_atom("(: a (A) (STV 1.0 1.0))")
+
+        proofs = handler.query("(: $prf (Or (A) (B)) $tv)", steps=20, timeout_sec=0)
+
+        self.assertTrue(proofs)
+
 
 if __name__ == "__main__":
     unittest.main()

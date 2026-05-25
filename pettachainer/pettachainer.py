@@ -30,9 +30,16 @@ def get_language_spec(llm_focused: bool = True) -> str:
     return (Path(__file__).resolve().parent / ("LLM_RULE_SPEC.md" if llm_focused else "LANGUAGE_SPEC.md")).read_text(encoding="utf-8")
 
 
-def _query_worker(added_atoms: List[Tuple[str, bool]], kb: str, steps: int, atom: str, conn):
+def _query_worker(
+    added_atoms: List[Tuple[str, bool]],
+    kb: str,
+    steps: int,
+    atom: str,
+    logic_config_path: Optional[str],
+    conn,
+):
     try:
-        handler = PeTTaChainer()
+        handler = PeTTaChainer(logic_config=logic_config_path)
         handler.kb = kb
         if added_atoms:
             handler.add_atoms_no_check(added_atoms)
@@ -49,23 +56,35 @@ def _as_list(value) -> List[str]:
 
 
 class PeTTaChainer:
-    def __init__(self):
+    def __init__(self, logic_config: Optional[str] = None):
         global LOADEDLIB
         self.handler = PeTTa()
         self.kb = f"kb{uuid.uuid4().hex}"
         self._added_atoms: List[Tuple[str, bool]] = []
         self._pattern_mining_on_add = False
+        self._logic_config_path: Optional[Path] = None
         base_dir = Path(__file__).resolve().parent
 
-        if LOADEDLIB:
-            return
-        with LOADED_LOCK:
-            if LOADEDLIB:
-                return
-            metta_path = base_dir / "metta" / "petta_chainer.metta"
-            logger.info("Loading MeTTa library from %s", metta_path)
-            self.handler.load_metta_file(str(metta_path))
-            LOADEDLIB = True
+        if not LOADEDLIB:
+            with LOADED_LOCK:
+                if not LOADEDLIB:
+                    metta_path = base_dir / "metta" / "petta_chainer.metta"
+                    logger.info("Loading MeTTa library from %s", metta_path)
+                    self.handler.load_metta_file(str(metta_path))
+                    LOADEDLIB = True
+
+        self.load_logic_config(logic_config or "pln")
+
+    def load_logic_config(self, logic_config: str) -> str:
+        path = Path(logic_config)
+        if not path.suffix and len(path.parts) == 1:
+            path = Path(__file__).resolve().parent / "metta" / "logic_configs" / f"{logic_config}.metta"
+        else:
+            path = path.expanduser()
+            if not path.is_absolute():
+                path = path.resolve()
+        self._logic_config_path = path
+        return self.handler.load_metta_file(str(path))
 
     def _evaluate(self, atom: str) -> str:
         result = self.handler.process_metta_string(f"!(eval {atom})")
@@ -183,7 +202,14 @@ class PeTTaChainer:
         parent_conn, child_conn = ctx.Pipe(duplex=False)
         worker = ctx.Process(
             target=_query_worker,
-            args=(self._added_atoms, self.kb, steps, evaluated_query, child_conn),
+            args=(
+                self._added_atoms,
+                self.kb,
+                steps,
+                evaluated_query,
+                str(self._logic_config_path) if self._logic_config_path else None,
+                child_conn,
+            ),
             daemon=True,
         )
         worker.start()

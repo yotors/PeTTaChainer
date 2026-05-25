@@ -111,3 +111,47 @@
             (query 10 (contextualFactsKb LOCAL Nil) (: $prf (LocalFact) $tv)))
          ()))
    true)
+
+!(compileadd biImplicationKb (: a (A) (STV 1.0 1.0)))
+
+!(compileadd biImplicationKb
+   (: a_iff_b
+      (BiImplication
+         (Premises (A))
+         (Conclusions (B)))
+      (STV 1.0 1.0)))
+
+!(test
+   (not
+      (== (collapse
+            (query 30 biImplicationKb (: $prf (B) $tv)))
+         ()))
+   true)
+
+!(compileadd biImplicationKb (: b (B2) (STV 1.0 1.0)))
+
+!(compileadd biImplicationKb
+   (: a2_iff_b2
+      (BiImplication
+         (Premises (A2))
+         (Conclusions (B2)))
+      (STV 1.0 1.0)))
+
+!(test
+   (not
+      (== (collapse
+            (query 30 biImplicationKb (: $prf (A2) $tv)))
+         ()))
+   true)
+
+!(test
+   (not
+      (== (collapse
+            (query 60 biImplicationKb
+               (: $prf
+                  (BiImplication
+                     (Premises (A))
+                     (Conclusions (B)))
+                  $tv)))
+         ()))
+   true)
