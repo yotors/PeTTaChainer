@@ -11,7 +11,7 @@
 !(test (not (== (collapse (query 4 bwdOnlyKb (: $p (Goal) $tv))) ())) true)
 
 !(test
-   (let (: $prf (Implication (Premises (A)) (Conclusions (Goal))) (STV 1.0 0.81))
+   (let (: $prf (Implication (Premises (A)) (Conclusions (Goal))) (STV 1.0 1.0))
       (superpose (collapse
                   (query 100 bwdOnlyKb (: $p (Implication (Premises (A)) (Conclusions (Goal))) $tv))))
       true)
@@ -39,7 +39,7 @@
 !(test
    (let (: (rule-proof r1 (ctx proof $_ctx))
            (Implication (Premises (A)) (Conclusions (B)))
-           (STV 1.0 0.9))
+           (STV 1.0 1.0))
       (superpose
          (collapse
             (query 100 openImplicationKb
@@ -65,7 +65,7 @@
 !(test
    (let (: (rule-proof featureRule (ctx proof $_ctx))
            (Implication (Premises (Feature #)) (Conclusions (Target)))
-           (STV 1.0 0.45))
+           (STV 1.0 0.5))
       (superpose
          (collapse
             (query 100 openHashPatternImplicationKb

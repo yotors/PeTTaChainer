@@ -1,17 +1,20 @@
-(= (MpFormula (STV $abs $abc) (STV $as $ac)) (STV (* $abs $as) (* 0.9 (min $abc $ac))))
+(= (MpFormula (STV $abs $abc) (STV $as $ac)) (STV (* $abs $as) (* $as (min $abc $ac))))
 
-(= (AndFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (min $si $sa)) ($cb (min $ci $ca))) (STV $sb $cb)))
+(= (AndFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (* $si $sa)) ($cb (min $ci $ca))) (STV $sb $cb)))
 
-(= (OrFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (min $si $sa)) ($cb (max $ci $ca))) (STV $sb $cb)))
+(= (OrFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (- (+ $si $sa) (* $si $sa))) ($cb (min $ci $ca))) (STV $sb $cb)))
 
-(= (LikelierThanFormula (STV $sa $ca) (STV $sb $cb))
-   (let*
-      (($c (min $ca $cb)))
-      (if (> $sa $sb) (STV $sa $c) (STV $sb $c))))
+(= (LikelierThanFormula (STV $sa $ca) (STV $sb $cb)) (STV (max 0.0 (- $sa $sb)) (min $ca $cb)))
 
-(= (AndProjection (STV $s $c)) (STV $s $c))
+(= (AndProjection (STV $sab $cab) (STV $sa $ca))
+   (if (== $sa 0.0)
+      (STV 0.0 0.0)
+      (STV (min 1.0 (/ $sab $sa)) (min $cab $ca))))
 
-(= (OrProjection (STV $s $c)) (STV $s $c))
+(= (OrProjection (STV $sab $cab) (STV $sa $ca))
+   (if (== $sa 1.0)
+      (STV 0.0 0.0)
+      (STV (min 1.0 (max 0.0 (/ (- $sab $sa) (- 1.0 $sa)))) (min $cab $ca))))
 
 (= (DistGreaterThanFormula (ParticleDist $pid $scale) $threshold)
    (let $pairs (particle-fetch-pairs $pid)

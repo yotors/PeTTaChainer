@@ -29,13 +29,50 @@
 (= (addidx (cons $head $tail) $idx) (cons ($head $idx) (addidx $tail (+ $idx 1))))
 (= (addidx () $idx) ())
 
+(= (remove-index 0 (cons $_head $tail)) $tail)
+(= (remove-index $idx (cons $head $tail)) (cons $head (remove-index (- $idx 1) $tail)))
+(= (remove-index $_idx ()) ())
+
 (= (seq2expr (cons $head $tail)) (if (== $tail ()) $head (cons And (cons $head $tail))))
+
+(= (projection-evidence-proof-token (cons $proof ())) $proof)
+(= (projection-evidence-proof-token (cons $proof (cons $next $rest)))
+   (cons conjunction (cons $proof (cons $next $rest))))
+
+(= (projection-evidence-step $kb $formula
+      (projection-evidence-state $execs $proofs $acc-tv)
+      $elem)
+   (projection-evidence-state
+      (append $execs ((: $kb $prf $elem $tv) (CPU $formula ($acc-tv $tv) $next-tv)))
+      (append $proofs ($prf))
+      $next-tv))
+
+(= (projection-evidence-bundle $kb $head (cons $fst $rst))
+   (let*
+      (((projection-evidence-state $execs $proofs $tv)
+           (fold-flat
+              (projection-evidence-step $kb (atom_concat $head Formula))
+              (projection-evidence-state ((: $kb $fstprf $fst $fsttv)) ($fstprf) $fsttv)
+              $rst))
+        ($proof-token (projection-evidence-proof-token $proofs)))
+      (bundle-from-execs $execs $tv $proof-token)))
 
 (= (compile-output-children $kb $type $head $idx ()) (empty))
 (= (compile-output-children $kb $type $head $idx (cons $elem $rest))
    (superpose (
-      (((: $kb $prf $type $tvin) (CPU (atom_concat $head Projection) ($tvin) $tvout)) |-
-         ((: $kb (proj $idx $prf) $elem $tvout)))
+      (let $others (remove-index $idx (cdr-atom $type))
+         (if (== $others ())
+            (((: $kb $prf $type $tvin) (CPU (atom_concat $head Projection) ($tvin) $tvout)) |-
+               ((: $kb (proj $idx $prf) $elem $tvout)))
+            (let*
+               (((premise-bundle $execs $evidence-tv $evidence-proof)
+                    (projection-evidence-bundle $kb $head $others))
+                 ($allargs
+                    (append
+                       ((: $kb $prf $type $tvin))
+                       (append $execs ((CPU (atom_concat $head Projection) ($tvin $evidence-tv) $tvout)))))
+                 ($proof-token (rule-proof (proj $idx $prf) $evidence-proof)))
+               ($allargs |- ((: $kb $proof-token $elem $tvout))))))
       (compile-outputs (: $kb $childprf $elem $childtv))
       (compile-output-children $kb $type $head (+ $idx 1) $rest))))
 

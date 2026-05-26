@@ -63,11 +63,11 @@
 !(test
    (let (: $prf (CntKidIn room1 $cnt) $tv) (query 40 kb (: $prf (CntKidIn room1 $cnt) $tv))
       (let (STV $s $c) (MpFormula (STV 1.0 0.75) (DistGreaterThanFormula $cnt 1))
-         (and (and (> $s 0.2499) (< $s 0.2501)) (and (> $c 0.10587) (< $c 0.10589)))))
+         (and (and (> $s 0.2499) (< $s 0.2501)) (and (> $c 0.02940) (< $c 0.02942)))))
    true)
 
 !(test
    (let (: $prf (CntKidIn room2 $cnt) $tv) (query 40 kb (: $prf (CntKidIn room2 $cnt) $tv))
       (let (STV $s $c) (MpFormula (STV 1.0 0.75) (DistGreaterThanFormula $cnt 1))
-         (and (and (> $s 0.0599) (< $s 0.0601)) (and (> $c 0.08795) (< $c 0.08797)))))
+         (and (and (> $s 0.0599) (< $s 0.0601)) (and (> $c 0.00586) (< $c 0.00587)))))
    true)

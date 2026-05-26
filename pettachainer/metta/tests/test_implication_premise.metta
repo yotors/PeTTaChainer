@@ -46,7 +46,7 @@
 !(test
    (let (: (rule-proof ab_c (rule-proof conjunction (ctx proof $_ctx) (ctx proof $_ctx 1)))
            (Implication (Premises (A) (B)) (Conclusions (C)))
-           (STV 1.0 0.9))
+           (STV 1.0 1.0))
       (superpose
          (collapse
             (query 60 multiPremiseImplicationQueryKb

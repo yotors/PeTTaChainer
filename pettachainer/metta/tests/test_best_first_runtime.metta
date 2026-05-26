@@ -11,7 +11,7 @@
    (: ruleStable (Implication (Premises (BasePremise)) (Conclusions (SwitchGoal))) (STV 1.0 0.7)))
 
 !(test
-   (let (: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.63))
+   (let (: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.7))
       (superpose (collapse
                   (query 10 kb (: $prf (SwitchGoal) $tv))))
       true)
@@ -27,10 +27,10 @@
 !(test (collapse (query 0 kb (: $prf (SwitchGoal) $tv))) ())
 
 !(test (collapse (query 4 kb (: $prf (SwitchGoal) $tv)))
-   ((: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.63))))
+   ((: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.7))))
 
 !(test (collapse (query 7 kb (: $prf (SwitchGoal) $tv)))
-   ((: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.63))))
+   ((: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.7))))
 
 !(test (collapse (query 100 kb (: $prf (SwitchGoal) $tv)))
-   ((: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.63))))
+   ((: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.7))))

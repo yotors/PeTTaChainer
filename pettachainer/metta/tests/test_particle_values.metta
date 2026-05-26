@@ -58,7 +58,7 @@
 !(test
    (let (: $prf (Taller countryA countryB) $tv) (query 40 kb (: $prf (Taller countryA countryB) $tv))
       (let (STV $s $c) $tv $c))
-   0.04285714285714286)
+   0.023809523809523808)
 
 !(compileadd kb (: kidp1 (Kid kidp1) (STV 1.0 1.0)))
 
@@ -109,7 +109,7 @@
 !(test
    (let (: $prf (CntKidInParticle roomp1 $cnt) $tv) (query 40 kb (: $prf (CntKidInParticle roomp1 $cnt) $tv))
       (let (STV $s $c) (MpFormula (STV 1.0 0.75) (DistGreaterThanFormula $cnt 1))
-         (and (and (> $s 0.2499) (< $s 0.2501)) (and (> $c 0.10587) (< $c 0.10589)))))
+         (and (and (> $s 0.2499) (< $s 0.2501)) (and (> $c 0.02940) (< $c 0.02942)))))
    true)
 
 !(test
