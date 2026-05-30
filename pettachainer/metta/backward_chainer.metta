@@ -94,12 +94,14 @@
           ($next-bundle (advance-frontier-bundle (copy_term $bundle) $pid)))
          (if $overlap $agenda
             (if (== $next-bundle ()) $agenda
-               (spawn-frontier-heap $agenda
-                  $parent-gid
-                  $next-bundle
-                  (min $score $pscore)
-                  (list_to_set (append $seen $pev))
-                  (cons $pid $rev-pids)))))))
+               (let $next-score
+                  (min-atom ($score $pscore (premises-expected-confidence (copy_term (and-bundle-premises $next-bundle)))))
+                  (spawn-frontier-heap $agenda
+                     $parent-gid
+                     $next-bundle
+                     $next-score
+                     (list_to_set (append $seen $pev))
+                     (cons $pid $rev-pids))))))))
 
 (= (frontier-waiter-step (@ $waiter (head frontier-waiter)) $rest) (cons $waiter $rest))
 (= (frontier-waiter-step $_waiter $rest) $rest)
@@ -268,7 +270,7 @@
 
 (= (expand-rule-goal-fold $agenda ($args $goal $parent-gid))
    (let*
-      (($bound (premises-expected-confidence $args))
+      (($bound (premises-expected-confidence (copy_term $args)))
        ($bundle (copy_term (make-and-bundle $goal $args))))
       (spawn-frontier-heap $agenda
          $parent-gid

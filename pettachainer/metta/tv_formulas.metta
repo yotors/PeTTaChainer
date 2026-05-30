@@ -32,7 +32,7 @@
         ($cb (particle-confidence-from-pairs $pairsb)))
       (STV (* (* $scalea $scaleb) (dist-prob-gt2 $pairsa $pairsb)) (min $ca $cb))))
 
-(= (NotFormula (STV $s $c) (STV (- 1 $s) $c)))
+(= (NotFormula (STV $s $c)) (STV (- 1 $s) $c))
 
 (= (InversionFormula (STV $sa $ca) (STV $sb $cb) (STV $sab $cab))
    (STV (/ (* $sb $sab) $sa) (* (min-atom ($ca $cb $cab)) 0.9)))

@@ -8,6 +8,8 @@
 
 !(test (MpFormula (STV 1.0 0.6) (STV 0.0 1.0)) (STV 0.0 0.0))
 
+!(test (term-confidence (CPU NotFormula ((STV 0.75 0.6)) $out)) 0.6)
+
 !(test (term-confidence (CPU AndFormula ((STV 0.8 0.4) (STV 0.9 0.7)) $out)) 0.4)
 
 !(test (term-confidence (CPU OrFormula ((STV 0.8 0.4) (STV 0.9 0.7)) $out)) 0.4)
@@ -26,6 +28,17 @@
    (premises-expected-confidence
       (cons (CPU MpFormula ((STV 1.0 0.2) (STV 1.0 1.0)) $tv1)
          (cons (CPU MpFormula ((STV 1.0 0.55) $tv1) $tv2) ())))
+   0.2)
+
+!(test
+   (premises-expected-confidence
+      (cons (CPU MpFormula ((STV 1.0 0.8) (STV 0.25 1.0)) $tv) ()))
+   0.2)
+
+!(test
+   (premises-expected-confidence
+      (cons (CPU NotFormula ((STV 0.75 1.0)) $not-tv)
+         (cons (CPU MpFormula ((STV 1.0 0.8) $not-tv) $tv) ())))
    0.2)
 
 !(test

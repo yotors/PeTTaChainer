@@ -12,22 +12,55 @@
    (if (is-var $tv) (STV 1.0 1.0)
       (if (= $tv (STV $s $c)) (STV (if (is-var $s) 1.0 $s) (if (is-var $c) 1.0 $c)) $tv)))
 
-(= (cpu-expected-confidence $fun $args)
+(= (cpu-expected-tv $fun $args)
    (if (is-member $fun (() MpFormula AndFormula OrFormula LikelierThanFormula))
       (let*
          ((($a $b) $args)
            ($res (reduce (reduce (cons $fun ((normalize-expected-tv $a) (normalize-expected-tv $b)))))))
-         (tv-confidence $res))
-      (if (== $fun InversionFormula)
-         (let*
-            ((($a $b $ab) $args)
-              ($res
-                 (reduce
+         $res)
+      (if (== $fun NotFormula)
+         (let $a (car-atom $args)
+            (if (is-var $a)
+               (STV 1.0 1.0)
+               (if (= $a (STV $s $c))
+                  (STV (if (is-var $s) 1.0 (- 1 $s)) (if (is-var $c) 1.0 $c))
+                  (let (STV $s $c) (normalize-expected-tv $a) (STV (- 1 $s) $c)))))
+         (if (== $fun InversionFormula)
+            (let*
+               ((($a $b $ab) $args)
+                 ($res
                     (reduce
-                       (cons $fun
-                          ((normalize-expected-tv $a) (normalize-expected-tv $b) (normalize-expected-tv $ab)))))))
-            (tv-confidence $res))
-         1.0)))
+                       (reduce
+                          (cons $fun
+                             ((normalize-expected-tv $a) (normalize-expected-tv $b) (normalize-expected-tv $ab)))))))
+               $res)
+            ()))))
+
+(= (first-cpu-expected-tv $fun $args)
+   (let $res (let $hits (collapse (cpu-expected-tv $fun $args)) (if (== $hits ()) () (car-atom $hits)))
+      $res))
+
+(= (cpu-expected-confidence $fun $args)
+   (let $res (first-cpu-expected-tv $fun $args)
+      (if (== $res ()) 1.0 (tv-confidence $res))))
+
+(= (premises-expected-confidence-step (CPU $fun $args $mid-tv) (cons (CPU MpFormula ($rule-tv $mid-tv) $_mp-tv) $rest))
+   (let $expected (first-cpu-expected-tv $fun $args)
+      (if (== $expected ())
+         (min (term-confidence (CPU $fun $args $mid-tv))
+            (premises-expected-confidence (cons (CPU MpFormula ($rule-tv $mid-tv) $_mp-tv) $rest)))
+         (min-atom
+            ((tv-confidence $expected)
+             (cpu-expected-confidence MpFormula ($rule-tv $expected))
+             (premises-expected-confidence $rest))))))
+(= (premises-expected-confidence-step (CPU $fun $args $res) $rest)
+   (if (= $rest (cons (CPU MpFormula ($_rule-tv $res) $_mp-tv) $_tail))
+      (empty)
+      (min (term-confidence (CPU $fun $args $res)) (premises-expected-confidence $rest))))
+(= (premises-expected-confidence-step $prem $rest)
+   (if (= $prem (CPU $_fun $_args $_res))
+      (empty)
+      (min (term-confidence $prem) (premises-expected-confidence $rest))))
 
 (= (term-confidence (CPU $fun $args $res))
    (if (is-var $res) (cpu-expected-confidence $fun $args) (tv-confidence $res)))
@@ -35,7 +68,7 @@
 
 (= (premises-expected-confidence ()) 1.0)
 (= (premises-expected-confidence (cons $prem $rest))
-   (min (term-confidence $prem) (premises-expected-confidence $rest)))
+   (premises-expected-confidence-step $prem $rest))
 
 (= (bounded-agenda-target-size $steps) (min 1000 (max 1 $steps)))
 (= (bounded-agenda-prune-factor) 64)

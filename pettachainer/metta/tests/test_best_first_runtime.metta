@@ -34,3 +34,53 @@
 
 !(test (collapse (query 100 kb (: $prf (SwitchGoal) $tv)))
    ((: (rule-proof ruleStable baseFact) (SwitchGoal) (STV 1.0 0.7))))
+
+!(compileadd priorityStrengthKb (: weakInput (WeakInput) (STV 0.2 1.0)))
+
+!(compileadd priorityStrengthKb (: strongInput (StrongInput) (STV 0.8 1.0)))
+
+!(compileadd priorityStrengthKb
+   (: weakRule (Implication (Premises (WeakInput)) (Conclusions (StrengthPriorityGoal))) (STV 1.0 1.0)))
+
+!(compileadd priorityStrengthKb
+   (: strongRule (Implication (Premises (StrongInput)) (Conclusions (StrengthPriorityGoal))) (STV 1.0 1.0)))
+
+!(test (collapse (query 2 priorityStrengthKb (: $prf (StrengthPriorityGoal) $tv))) ())
+
+!(test (collapse (query 3 priorityStrengthKb (: $prf (StrengthPriorityGoal) $tv)))
+   ((: (rule-proof strongRule strongInput) (StrengthPriorityGoal) (STV 0.8 0.8))))
+
+!(compileadd chainedPriorityKb (: weakEvidence (WeakEvidence) (STV 0.2 1.0)))
+
+!(compileadd chainedPriorityKb (: strongEvidence (StrongEvidence) (STV 0.8 1.0)))
+
+!(compileadd chainedPriorityKb
+   (: weakToA (Implication (Premises (WeakEvidence)) (Conclusions (AForPriority))) (STV 0.1 1.0)))
+
+!(compileadd chainedPriorityKb
+   (: strongToA (Implication (Premises (StrongEvidence)) (Conclusions (AForPriority))) (STV 1.0 1.0)))
+
+!(compileadd chainedPriorityKb
+   (: aToGoal (Implication (Premises (AForPriority)) (Conclusions (ChainedPriorityGoal))) (STV 1.0 1.0)))
+
+!(test (collapse (query 4 chainedPriorityKb (: $prf (ChainedPriorityGoal) $tv))) ())
+
+!(test (collapse (query 5 chainedPriorityKb (: $prf (ChainedPriorityGoal) $tv)))
+   ((: (rule-proof aToGoal (rule-proof strongToA strongEvidence))
+       (ChainedPriorityGoal)
+       (STV 0.8 0.6400000000000001))))
+
+!(compileadd priorityNegKb (: highInput (HighInput) (STV 0.9 1.0)))
+
+!(compileadd priorityNegKb (: lowInput (LowInput) (STV 0.1 1.0)))
+
+!(compileadd priorityNegKb
+   (: highNegRule (Implication (Premises (Not (HighInput))) (Conclusions (NegPriorityGoal))) (STV 1.0 1.0)))
+
+!(compileadd priorityNegKb
+   (: lowNegRule (Implication (Premises (Not (LowInput))) (Conclusions (NegPriorityGoal))) (STV 1.0 1.0)))
+
+!(test (collapse (query 3 priorityNegKb (: $prf (NegPriorityGoal) $tv))) ())
+
+!(test (collapse (query 4 priorityNegKb (: $prf (NegPriorityGoal) $tv)))
+   ((: (rule-proof lowNegRule lowInput) (NegPriorityGoal) (STV 0.9 0.9))))
