@@ -71,3 +71,15 @@
         ($_clear-temp-after (clear-temp-query-adds)))
       (superpose
          $pres)))
+
+(= (query-materialize $steps $kb $stmt)
+   (let*
+      (((compiled-query $goal $adds) (mm2compileQuery $kb $stmt))
+        ($_clear-temp-before (clear-temp-query-adds))
+        ($_ (inject-compiled-adds $adds))
+        ($results (chainer-materialize $steps $goal))
+        ($eres (map-flat externalize-proof-structure $results))
+        ($pres (map-flat pretty $eres))
+        ($_clear-temp-after (clear-temp-query-adds)))
+      (superpose
+         $pres)))

@@ -447,7 +447,7 @@
          (($rest (get_from_heap $agenda $_priority $item)))
          (search-agenda-step $steps $rest $item))))
 
-(= (chainer $steps $goal)
+(= (chainer-run $steps $goal)
    (let*
       (($_clear (foreach-flat remove-all-atoms (&goal &goal_lookup &goal_waiter &aggregate &proof &proof_live_cache &goal_live_cache)))
        ($_reset (foreach-flat (|-> ($key) (change-state! $key 0)) (bwd_gid bwd_pid bwd_live_epoch)))
@@ -455,4 +455,13 @@
        ($agenda0 (schedule-goal-heap (empty_heap) 1.0 $root-gid))
        ((search-state $_steps-left $_agenda1)
           (once (if (<= $steps 0) (search-state 0 $agenda0) (search-agenda-heap (+ $steps 1) $agenda0)))))
-      (once (goal-results $root-gid))))
+      (chainer-run-result $root-gid (once (goal-results $root-gid)))))
+
+(= (chainer $steps $goal)
+   (let (chainer-run-result $_root-gid $results) (chainer-run $steps $goal)
+      $results))
+
+(= (chainer-materialize $steps $goal)
+   (let (chainer-run-result $root-gid $results) (chainer-run $steps $goal)
+      (let $_materialized (materialize-goal-proofs-to-kb $root-gid)
+         $results)))

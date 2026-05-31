@@ -107,6 +107,39 @@
 (= (proof-children-by-id $pid)
    (match &proof ($pid $_gid $_output $_kind $_score $_ev $children) $children))
 
+(= (proof-kind-by-id $pid)
+   (match &proof ($pid $_gid $_output $kind $_score $_ev $_children) $kind))
+
+(= (materializable-proof-kind? (rule $_term)) true)
+(= (materializable-proof-kind? $_kind) false)
+
+(= (materializable-proof-output? ($type ($_kbid MAIN Nil) $_prf $_tv))
+   (and (== (extract-vars $type) ()) (not (contains-hash? $type))))
+(= (materializable-proof-output? $_output) false)
+
+(= (materialize-proof-node-to-kb $pid)
+   (let*
+      (($kind (proof-kind-by-id $pid))
+       ($output (proof-output-atom $pid)))
+      (if (and (materializable-proof-kind? $kind) (materializable-proof-output? $output))
+         (let $fact (materialize-result-atom $output)
+            (progn
+               (forward-fact-upsert (empty_heap) $fact)
+               (mark-forward-agenda-dirty $fact)))
+         ())))
+
+(= (materialize-proof-tree-to-kb $pid)
+   (let $_children (materialize-proof-list-to-kb (proof-children-by-id $pid))
+      (materialize-proof-node-to-kb $pid)))
+
+(= (materialize-proof-list-to-kb ()) ())
+(= (materialize-proof-list-to-kb (cons $pid $rest))
+   (let $_head (materialize-proof-tree-to-kb $pid)
+      (materialize-proof-list-to-kb $rest)))
+
+(= (materialize-goal-proofs-to-kb $gid)
+   (materialize-proof-list-to-kb (goal-live-proof-ids $gid)))
+
 (= (proof-live-cache-epoch)
    (let $n (get-state bwd_live_epoch) (if-error $n 0 $n)))
 
