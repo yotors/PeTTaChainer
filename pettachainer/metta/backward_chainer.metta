@@ -59,10 +59,19 @@
       (((compiled-query $child-goal $adds) (mm2compileQuery $kb (: $prf $pattern $tvin)))
        ($_ (inject-compiled-adds $adds)))
       $child-goal))
+(=
+   (aggregate-child-goal
+      (CPU GroupedFoldAllCompiled ($kb $pattern $_group $_extractor $_init $_fun $_finish $_tv-mode) $_goalres))
+   (let*
+      (((compiled-query $child-goal $adds) (mm2compileQuery $kb (: $prf $pattern $tvin)))
+       ($_ (inject-compiled-adds $adds)))
+      $child-goal))
 
 (= (aggregate-step-value (extract-value $pattern $value) $child-atom $_child-tv)
    (let ($pattern ($_ckbid $_cctx $_cvars) $_cprf $_ctv) (copy_term $child-atom) $value))
 (= (aggregate-step-value extract-tv $_child-atom $child-tv) $child-tv)
+(= (aggregate-step-group-value $pattern $group $child-atom)
+   (let ($pattern ($_ckbid $_cctx $_cvars) $_cprf $_ctv) (copy_term $child-atom) $group))
 
 (= (aggregate-foldall-step-acc $extractor $fun $acc $child-atom $child-tv)
    (eval ($fun $acc (aggregate-step-value $extractor $child-atom $child-tv))))
@@ -121,7 +130,7 @@
 
 (= (spawn-aggregate-goal-heap $agenda $score $agg-gid $goal-view)
    (let*
-      (($args (copy_term (let (CPU FoldAllCompiled $args $_goalres) $goal-view $args)))
+      (($args (copy_term (let (CPU $_agg-fun $args $_goalres) $goal-view $args)))
        ($child-goal (aggregate-child-goal $goal-view))
        (($depth $_goal $_expanded $_pending) (goal-by-id $agg-gid))
        ($child-gid (ensure-goal-at-depth $child-goal (+ 1 $depth)))
@@ -135,43 +144,122 @@
        ($nagenda (schedule-aggregate-heap $agenda1 $agg-gid)))
       $nagenda))
 
+(= (aggregate-args-grouped? $args)
+   (if (= $args ($_kb $_pattern $_group $_extractor $_init $_fun $_finish $_tv-mode)) true false))
+
 (= (aggregate-proof-key ($type ($kbid $ctx $vars) $_prf $_tv)) (($kbid $ctx $vars) $type))
 (= (aggregate-proof-key $child-atom) $child-atom)
 
-(= (aggregate-proof-fold-step $args (aggregate-state $acc $ev $seen) $pid)
+(= (aggregate-proof-fold-step $args (aggregate-state $acc $ev $seen $children) $pid)
    (let*
       ((($_agg-kb $_agg-pattern $extractor $_agg-init $fun $_agg-finish $_agg-tv-mode) (copy_term $args))
        ($child-atom (proof-output-atom $pid))
        ($child-key (aggregate-proof-key $child-atom))
        (($_pscore $pev) (proof-stats-by-id $pid))
        ($child-tv (if (= $child-atom ($_type $_kb $_prf $tv)) $tv no-tv)))
-      (if (is-member $child-key $seen) (aggregate-state $acc $ev $seen)
+      (if (is-member $child-key $seen) (aggregate-state $acc $ev $seen $children)
          (let*
             (($nacc (aggregate-foldall-step-acc $extractor $fun $acc $child-atom $child-tv))
              ($nev (list_to_set (append $ev $pev)))
-             ($nseen (cons $child-key $seen)))
-            (aggregate-state $nacc $nev $nseen)))))
+             ($nseen (cons $child-key $seen))
+             ($nchildren (append $children ($pid))))
+            (aggregate-state $nacc $nev $nseen $nchildren)))))
 
 (= (aggregate-final-state $child-gid $args)
    (let*
       ((($_kb $_pattern $_extractor $init-acc $_fun $_finish $_tv-mode) (copy_term $args)))
       (fold-flat (aggregate-proof-fold-step $args)
-         (aggregate-state $init-acc () ())
+         (aggregate-state $init-acc () () ())
          (goal-live-proof-ids $child-gid))))
+
+(= (aggregate-group-update $extractor $fun $init $group $child-atom $child-tv $pev $child-key $pid ())
+   (let*
+      (($nacc (aggregate-foldall-step-acc $extractor $fun $init $child-atom $child-tv))
+       ($nev (list_to_set $pev)))
+      ((aggregate-group-state $group $nacc $nev ($child-key) ($pid)))))
+(= (aggregate-group-update $extractor $fun $init $group $child-atom $child-tv $pev $child-key $pid (cons (aggregate-group-state $old-group $acc $ev $seen $children) $rest))
+   (if (== $group $old-group)
+      (if (is-member $child-key $seen)
+         (cons (aggregate-group-state $old-group $acc $ev $seen $children) $rest)
+         (let*
+            (($nacc (aggregate-foldall-step-acc $extractor $fun $acc $child-atom $child-tv))
+             ($nev (list_to_set (append $ev $pev)))
+             ($nseen (cons $child-key $seen))
+             ($nchildren (append $children ($pid))))
+            (cons (aggregate-group-state $old-group $nacc $nev $nseen $nchildren) $rest)))
+      (cons (aggregate-group-state $old-group $acc $ev $seen $children)
+         (aggregate-group-update $extractor $fun $init $group $child-atom $child-tv $pev $child-key $pid $rest))))
+
+(= (grouped-aggregate-proof-fold-step $args $states $pid)
+   (let*
+      ((($_agg-kb $pattern $group-template $extractor $init $fun $_finish $_tv-mode) (copy_term $args))
+       ($child-atom (proof-output-atom $pid))
+       ($group (aggregate-step-group-value $pattern $group-template $child-atom))
+       ($child-key (aggregate-proof-key $child-atom))
+       (($_pscore $pev) (proof-stats-by-id $pid))
+       ($child-tv (if (= $child-atom ($_type $_kb $_prf $tv)) $tv no-tv)))
+      (aggregate-group-update $extractor $fun $init $group $child-atom $child-tv $pev $child-key $pid $states)))
+
+(= (grouped-aggregate-final-states $child-gid $args)
+   (fold-flat (grouped-aggregate-proof-fold-step $args)
+      ()
+      (goal-live-proof-ids $child-gid)))
+
+(= (grouped-aggregate-result $args (aggregate-group-state $group $acc $_ev $_seen $_children))
+   (let*
+      ((($kb $pattern $_group-template $extractor $init $fun $finish $tv-mode) $args))
+      (CPU GroupedFoldAllCompiled ($kb $pattern $group $extractor $init $fun $finish $tv-mode) (aggregate-finish $finish $acc))))
+
+(= (commit-grouped-aggregate-state-heap $agg-gid $args $agenda (aggregate-group-state $group $acc $ev $seen $children))
+   (let*
+      (($result (grouped-aggregate-result $args (aggregate-group-state $group $acc $ev $seen $children)))
+       ($score (term-confidence $result))
+       ($accepted (classify-goal-proof-candidate $agg-gid $result $ev $score)))
+      (commit-grouped-aggregate-candidate-heap $agenda
+         $agg-gid
+         $accepted
+         (aggregate-result-candidate $result $ev $children))))
+
+(= (append-grouped-aggregate-current-pid! $agg-gid $pid)
+   (let*
+      ((($child-gid $args $base-score $pending $current-pids) (aggregate-by-id $agg-gid))
+       ($next-pids (cons $pid $current-pids)))
+      (progn
+         (remove-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $current-pids))
+         (chainer-add-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $next-pids)))))
+
+(= (commit-grouped-aggregate-candidate-heap $agenda $agg-gid $accepted (proof-candidate $kind $score $ev $children))
+   (if (== $accepted false) $agenda
+      (if (candidate-is-cyclic? $agg-gid $children) $agenda
+         (let*
+            (($pid (store-proof-candidate $agg-gid (proof-candidate $kind $score $ev $children)))
+             ($_set (append-grouped-aggregate-current-pid! $agg-gid $pid))
+             ($_cache-invalidate (invalidate-proof-live-caches)))
+            (wake-proof-commit-heap $agenda $agg-gid $pid)))))
+
+(= (run-grouped-aggregate-heap $agenda $agg-gid $child-gid $args)
+   (fold-flat (commit-grouped-aggregate-state-heap $agg-gid $args)
+      $agenda
+      (grouped-aggregate-final-states $child-gid $args)))
 
 (= (run-aggregate-heap $agenda $agg-gid)
    (let*
       ((($child-gid $args $base-score $pending $current-pid) (aggregate-by-id $agg-gid))
+       ($grouped? (aggregate-args-grouped? $args))
+       ($next-current-pid (if $grouped? () $current-pid))
        ($_clear
           (progn
              (remove-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $current-pid))
-             (chainer-add-atom &aggregate ($agg-gid $child-gid $args $base-score 0.0 $current-pid))))
-       ((aggregate-state $acc $ev $_seen) (aggregate-final-state $child-gid $args))
-       (($kb $pattern $extractor $init $fun $finish $tv-mode) $args)
-       ($result (CPU FoldAllCompiled $args (aggregate-finish $finish $acc))))
-      (if (aggregate-snapshot-changed? $current-pid $result $ev)
-         (commit-aggregate-snapshot-heap $agenda $agg-gid $result $ev)
-         $agenda)))
+             (chainer-add-atom &aggregate ($agg-gid $child-gid $args $base-score 0.0 $next-current-pid)))))
+      (if $grouped?
+         (run-grouped-aggregate-heap $agenda $agg-gid $child-gid $args)
+         (let*
+            (((aggregate-state $acc $ev $_seen $children) (aggregate-final-state $child-gid $args))
+             (($kb $pattern $extractor $init $fun $finish $tv-mode) $args)
+             ($result (CPU FoldAllCompiled $args (aggregate-finish $finish $acc))))
+            (if (aggregate-snapshot-changed? $current-pid $result $ev)
+               (commit-aggregate-snapshot-heap $agenda $agg-gid $result $ev $children)
+               $agenda)))))
 
 (= (direct-goal-results-view $steps (CPU $fun $args $_res))
    (CPU $fun $args (reduce (cpu-call $steps $fun $args))))
@@ -230,12 +318,46 @@
             (match rules ($rule-id $goal $args)
                ($args $goal $parent-gid))))))
 
+(= (rule-goal-contextual? $goal)
+   (if (= $goal ($_type ($_kbid $ctx $_vars) $_prf $_tv))
+      (not (== $ctx MAIN))
+      false))
+
+(= (rule-goal-full-view ($goal $parent-gid))
+   (match ccls_index ($goal $rule-id)
+      (match rules ($rule-id $goal $args)
+         ((contextualize-rule-args $goal $args) $goal $parent-gid))))
+
+(= (same-var-in-list? $_var ()) false)
+(= (same-var-in-list? $var (cons $head $tail))
+   (or (== $var $head) (same-var-in-list? $var $tail)))
+
+(= (any-same-var? () $_vars) false)
+(= (any-same-var? (cons $var $rest) $vars)
+   (or (same-var-in-list? $var $vars) (any-same-var? $rest $vars)))
+
+(= (context-vars-in-type? $type $vars)
+   (if (== $vars Nil) false
+      (any-same-var? (extract-vars $type) $vars)))
+
+(= (contextualize-rule-premise ($type ($kbid $prem-ctx $prem-vars) $prf $tv)
+      ($_goal-type ($kbid $ctx $vars) $_goal-prf $_goal-tv))
+   (if (and (== $prem-ctx MAIN) (and (not (== $ctx MAIN)) (context-vars-in-type? $type $vars)))
+      ($type ($kbid $ctx $vars) $prf $tv)
+      ($type ($kbid $prem-ctx $prem-vars) $prf $tv)))
+(= (contextualize-rule-premise (CPU $fun $args $res) $_goal) (CPU $fun $args $res))
+
+(= (contextualize-rule-args $_goal ()) ())
+(= (contextualize-rule-args $goal (cons $premise $rest))
+   (cons (contextualize-rule-premise $premise $goal)
+      (contextualize-rule-args $goal $rest)))
+
 (= (rule-goal-view ($goal $parent-gid))
    (if (open-rule-goal? $goal)
-      (rule-goal-head-view ($goal $parent-gid))
-      (match ccls_index ($goal $rule-id)
-         (match rules ($rule-id $goal $args)
-            ($args $goal $parent-gid)))))
+      (if (rule-goal-contextual? $goal)
+         (rule-goal-full-view ($goal $parent-gid))
+         (rule-goal-head-view ($goal $parent-gid)))
+      (rule-goal-full-view ($goal $parent-gid))))
 
 (= (spawn-frontier-heap $agenda $parent-gid $bundle $score $seen $rev-pids)
    (let*
@@ -290,7 +412,7 @@
           (progn (remove-atom &goal ($gid $depth $goal $expanded $pending))
              (chainer-add-atom &goal ($gid $depth $goal true $pending))))
        ($nagenda0
-          (if (and (= $goal (CPU $fun $_args $_res)) (== $fun FoldAllCompiled))
+          (if (and (= $goal (CPU $fun $_args $_res)) (or (== $fun FoldAllCompiled) (== $fun GroupedFoldAllCompiled)))
              (spawn-aggregate-goal-heap $agenda $score $gid $goal)
              (expand-direct-goal-heap $agenda $steps $gid $goal)))
        ($nagenda (if (== $nagenda0 ()) (empty_heap) $nagenda0)))

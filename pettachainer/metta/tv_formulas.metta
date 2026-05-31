@@ -1,5 +1,10 @@
 (= (MpFormula (STV $abs $abc) (STV $as $ac)) (STV (* $abs $as) (* $as (min $abc $ac))))
 
+(= (TotalMpFormula (STV $as $ac) (STV $bs_a $bc_a) (STV $bs_na $bc_na))
+   (STV
+      (+ (* $bs_a $as) (* $bs_na (- 1 $as)))
+      (+ (* $as (min $bc_a $ac)) (* (- 1 $as) (min $bc_na $ac)))))
+
 (= (AndFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (* $si $sa)) ($cb (min $ci $ca))) (STV $sb $cb)))
 
 (= (OrFormula (STV $si $ci) (STV $sa $ca)) (let* (($sb (- (+ $si $sa) (* $si $sa))) ($cb (min $ci $ca))) (STV $sb $cb)))

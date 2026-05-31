@@ -4,6 +4,7 @@
 
 (= (proof-output-atom-kind (leaf $term) $pid) (normalize-proof-output-atom-kind $term $pid))
 (= (proof-output-atom-kind (rule $term) $pid) (normalize-proof-output-atom-kind $term $pid))
+(= (proof-output-atom-kind (aggregate $term) $_pid) $term)
 
 (= (proof-output-atom $pid) (match &proof ($pid $_gid $output $_kind $_score $_ev $_children) $output))
 
@@ -14,20 +15,84 @@
    (candidate-output-key (proof-output-atom $pid)))
 
 (= (materialize-proof-refs $term)
-   (if (= $term (proof-ref $pid)) (materialize-proof-refs (materialize-proof $pid))
-      (if (is-expr $term)
-         (cons (materialize-proof-refs (car-atom $term)) (map-flat materialize-proof-refs (cdr-atom $term)))
-         $term)))
+   (if (is-expr $term)
+      (if (is-var (car-atom $term))
+         (cons (car-atom $term) (map-flat materialize-proof-refs (cdr-atom $term)))
+         (if (== (car-atom $term) proof-ref)
+            (materialize-proof-refs (materialize-proof (car-atom (cdr-atom $term))))
+            (cons (materialize-proof-refs (car-atom $term)) (map-flat materialize-proof-refs (cdr-atom $term)))))
+      $term))
 
 (= (materialize-result-atom $atom)
    (if (= $atom ($type $kb $prf $tv)) ($type $kb (materialize-proof-refs $prf) $tv) $atom))
 
 (= (materialize-proof-kind (leaf $raw) $_pid)
    (if (= $raw (CPU $_fun $_args $_res)) cpu (if (= $raw ($_type ($_kbid $_ctx $_vars) $prf $_tv)) $prf $raw)))
-(= (materialize-proof-kind (rule ($_type $_kb $prf $_tv)) $_pid)
-   (cons rule-proof
-      (cons (materialize-proof-refs (car-atom $prf)) (map-flat materialize-proof-refs (cdr-atom $prf)))))
-(= (materialize-proof-kind (rule $term) $_pid) $term)
+(= (aggregate-proof-label (CPU FoldAllCompiled $args $_res))
+   (if (= $args ($_kb $_pattern $_extractor $_init OrFormula $_finish $_tv-mode))
+      disjunction
+      foldall))
+(= (aggregate-proof-label (CPU GroupedFoldAllCompiled $args $_res))
+   (if (= $args ($_kb $_pattern $_group $_extractor $_init OrFormula $_finish $_tv-mode))
+      disjunction
+      foldall))
+(= (proof-ref-list ()) ())
+(= (proof-ref-list (cons $pid $rest)) (cons (proof-ref $pid) (proof-ref-list $rest)))
+(= (aggregate-child-proof-tokens ()) ())
+(= (aggregate-child-proof-tokens (cons $pid $rest))
+   (let $output (proof-output-atom $pid)
+      (if (or (= $output (CPU FoldAllCompiled $_args $_res)) (= $output (CPU GroupedFoldAllCompiled $_gargs $_gres)))
+         (cons (materialize-proof $pid) (aggregate-child-proof-tokens $rest))
+         (aggregate-child-proof-tokens $rest))))
+(= (replace-cpu-proof-token-list () $proofs) (() $proofs))
+(= (replace-cpu-proof-token-list (cons $head $tail) $proofs)
+   (let*
+      ((($new-head $proofs1) (replace-cpu-proof-token $head $proofs))
+       (($new-tail $proofs2) (replace-cpu-proof-token-list $tail $proofs1)))
+      ((cons $new-head $new-tail) $proofs2)))
+(= (replace-cpu-proof-token $term $proofs)
+   (if (is-var $term)
+      ($term $proofs)
+      (if (== $term cpu)
+         (if (= $proofs (cons $proof $rest)) ($proof $rest) (cpu ()))
+         (if (is-expr $term)
+            (let* ((($new-list $rest-proofs) (replace-cpu-proof-token-list $term $proofs)))
+               ($new-list $rest-proofs))
+            ($term $proofs)))))
+(= (materialize-rule-proof-token $prf $pid)
+   (let*
+      (($base-prf (materialize-proof-refs $prf))
+       ($aggregate-proofs (aggregate-child-proof-tokens (proof-children-by-id $pid)))
+       (($new-prf $_unused) (replace-cpu-proof-token $base-prf $aggregate-proofs)))
+      $new-prf))
+(= (materialize-proof-kind (aggregate $raw) $pid)
+   (let $children (proof-children-by-id $pid)
+      (if (== $children ()) cpu
+         (cons rule-proof
+            (cons (aggregate-proof-label $raw)
+               (map-flat materialize-proof-refs (proof-ref-list $children)))))))
+(= (rule-kind-proof-token $term)
+   (if (is-expr $term)
+      (let $tail1 (cdr-atom $term)
+         (if (== $tail1 ()) $term
+            (let $tail2 (cdr-atom $tail1)
+               (if (== $tail2 ()) $term
+                  (car-atom $tail2)))))
+      $term))
+(= (materialize-rule-proof-expression $rule-prf)
+   (if (is-expr $rule-prf)
+      (if (is-var (car-atom $rule-prf))
+         (if (== (cdr-atom $rule-prf) ())
+            $rule-prf
+            (car-atom (cdr-atom $rule-prf)))
+         (cons rule-proof
+            (cons (car-atom $rule-prf) (cdr-atom $rule-prf))))
+      $rule-prf))
+(= (materialize-proof-kind (rule $term) $pid)
+   (let $prf (rule-kind-proof-token $term)
+      (if (== $prf $term) $term
+         (let $rule-prf (materialize-rule-proof-token $prf $pid)
+            (materialize-rule-proof-expression $rule-prf)))))
 
 (= (materialize-proof $pid)
    (match &proof ($pid $_gid $_output $kind $_score $_ev $_children)
@@ -84,6 +149,10 @@
                (goal-live-cache-remove! $gid $pids)
                (goal-live-cache-store! $gid $npids))))))
 
+(= (aggregate-current-pid-live? () $_pid) false)
+(= (aggregate-current-pid-live? $current-pid $pid)
+   (if (is-expr $current-pid) (is-member $pid $current-pid) (== $current-pid $pid)))
+
 (= (proof-live-compute $pid)
    (let*
       (($gid (proof-goal-id $pid))
@@ -94,7 +163,7 @@
                    $current-pid)))))
       (if (== $current-hits ())
          (proof-list-live? (proof-children-by-id $pid))
-         (== (car-atom $current-hits) $pid))))
+         (aggregate-current-pid-live? (car-atom $current-hits) $pid))))
 
 (= (proof-list-live? ())
    true)
@@ -199,6 +268,9 @@
    (if (= $result ($type $_kb $_prf $_tv)) (proof-atom-candidate $result $ev)
       (proof-candidate (leaf $result) (term-confidence $result) $ev ())))
 
+(= (aggregate-result-candidate $result $ev $children)
+   (proof-candidate (aggregate $result) (term-confidence $result) $ev $children))
+
 (= (proof-depends-on-goal-seen? $pid $gid $open-goal $seen-pids)
    (if (is-member $pid $seen-pids) false
       (or (and (not $open-goal) (== (match &proof ($pid $proof-gid $_output $_kind $_score $_ev $_children) $proof-gid) $gid))
@@ -243,10 +315,10 @@
        (($_current-score $current-ev) (proof-stats-by-id $current-pid)))
       (or (not (== $current-output $result)) (not (== $current-ev $ev)))))
 
-(= (commit-aggregate-snapshot-heap $agenda $agg-gid $result $ev)
+(= (commit-aggregate-snapshot-heap $agenda $agg-gid $result $ev $children)
    (let*
       ((($child-gid $args $base-score $pending $current-pid) (aggregate-by-id $agg-gid))
-       ($pid (store-proof-candidate $agg-gid (leaf-result-candidate $result $ev)))
+       ($pid (store-proof-candidate $agg-gid (aggregate-result-candidate $result $ev $children)))
        ($_set
           (progn
              (remove-atom &aggregate ($agg-gid $child-gid $args $base-score $pending $current-pid))

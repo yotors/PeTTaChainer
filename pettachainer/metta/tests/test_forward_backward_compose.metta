@@ -73,6 +73,87 @@
       true)
    true)
 
+!(compileadd openVariableConclusionImplicationKb (: tallAlice (Tall alice) (STV 0.9 0.5)))
+
+!(compileadd openVariableConclusionImplicationKb (: femaleAlice (Female alice) (STV 0.9 0.5)))
+
+!(compileadd openVariableConclusionImplicationKb (: tallMary (Tall mary) (STV 0.9 0.5)))
+
+!(compileadd openVariableConclusionImplicationKb (: femaleMary (Female mary) (STV 0.9 0.5)))
+
+!(compileadd openVariableConclusionImplicationKb
+   (: copyPredicate
+      (Implication
+         (Premises (And ($p1 $x) ($p2 $x)) ($p1 $y))
+         (Conclusions ($p2 $y)))
+      (STV 1.0 1.0)))
+
+!(test
+   (not
+      (==
+         (collapse
+            (let (: (rule-proof copyPredicate
+                       (rule-proof conjunction
+                          (ctx proof $_ctx)
+                          (rule-proof disjunction $_left $_right)))
+                    (Implication (Premises (Tall $x)) (Conclusions (Female $x)))
+                    (STV 0.9639 0.48195))
+               (superpose
+                  (collapse
+                     (query 100 openVariableConclusionImplicationKb
+                        (: $p (Implication (Premises (Tall $x)) (Conclusions (Female $x))) $tv))))
+               true))
+         ()))
+   true)
+
+!(test
+   (length
+      (collapse
+         (query 100 openVariableConclusionImplicationKb
+            (: $p (Implication (Premises (Tall $x)) (Conclusions (Female $x))) $tv))))
+   1)
+
+!(test
+   (not
+      (==
+         (collapse
+            (let (: (ctx proof $_ctx)
+                    (Implication (Premises ($p $x)) (Conclusions ($p $x)))
+                    (STV 1.0 1.0))
+               (superpose
+                  (collapse
+                     (query 100 openVariableConclusionImplicationKb
+                        (: $proof (Implication (Premises ($p1 $x)) (Conclusions ($p2 $x))) $tv))))
+               true))
+         ()))
+   true)
+
+!(test
+   (not
+      (==
+         (collapse
+            (let (: $_proof
+                    (Implication (Premises (Female $x)) (Conclusions (Tall $x)))
+                    (STV 0.9639 0.48195))
+               (superpose
+                  (collapse
+                     (query 100 openVariableConclusionImplicationKb
+                        (: $proof (Implication (Premises ($p1 $x)) (Conclusions ($p2 $x))) $tv))))
+               true))
+         ()))
+   true)
+
+!(compileadd existentialDisjunctionKb (: pa (P a) (STV 0.8 0.5)))
+
+!(compileadd existentialDisjunctionKb (: pb (P b) (STV 0.6 0.7)))
+
+!(compileadd existentialDisjunctionKb
+   (: pToT (Implication (Premises (P $x)) (Conclusions (T))) (STV 1.0 1.0)))
+
+!(test
+   (collapse (query 100 existentialDisjunctionKb (: $prf (T) $tv)))
+   ((: (rule-proof pToT (rule-proof disjunction pa pb)) (T) (STV 0.9199999999999999 0.45999999999999996))))
+
 !(compileadd composeKb (: a0 (A) (STV 1.0 1.0)))
 
 !(compileadd composeKb (: r1 (Implication (Premises (A)) (Conclusions (B))) (STV 1.0 1.0)))

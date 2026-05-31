@@ -8,6 +8,10 @@
 
 !(test (MpFormula (STV 1.0 0.6) (STV 0.0 1.0)) (STV 0.0 0.0))
 
+!(test (TotalMpFormula (STV 0.5 1.0) (STV 1.0 0.5) (STV 0.1 0.5)) (STV 0.55 0.5))
+
+!(test (TotalMpFormula (STV 0.5 1.0) (STV 0.8 0.6) (STV 0.0 0.0)) (STV 0.4 0.3))
+
 !(test (term-confidence (CPU NotFormula ((STV 0.75 0.6)) $out)) 0.6)
 
 !(test (term-confidence (CPU AndFormula ((STV 0.8 0.4) (STV 0.9 0.7)) $out)) 0.4)

@@ -2,10 +2,12 @@
 
 (= (goal-has-type-vars? ($type ($_kbid $_ctx $vars) $_prf $_tv))
    (or (not (== (extract-vars $type) ())) (not (== $vars Nil))))
-(= (goal-has-type-vars? (CPU $_fun $_args $_res)) false)
+(= (goal-has-type-vars? (CPU $fun $args $res))
+   (not (== (extract-vars (CPU $fun $args $res)) ())))
 
 (= (goal-key ($type ($kbid $ctx $vars) $_prf $_tv))
-   (let $sealed-type (sealed (extract-vars $type) $type) ($sealed-type ($kbid $ctx $vars))))
+   (let $sealed-goal (sealed (extract-vars ($type $vars)) ($type $vars))
+      ($sealed-goal ($kbid $ctx))))
 (= (goal-key (CPU $fun $args $res)) (sealed (extract-vars (CPU $fun $args $res)) (CPU $fun $args $res)))
 
 (= (normalize-expected-tv $tv)
@@ -13,7 +15,28 @@
       (if (= $tv (STV $s $c)) (STV (if (is-var $s) 1.0 $s) (if (is-var $c) 1.0 $c)) $tv)))
 
 (= (cpu-expected-tv $fun $args)
-   (if (is-member $fun (() MpFormula AndFormula OrFormula LikelierThanFormula))
+   (if (== $fun TotalMpConclusionFormula)
+      (let*
+         ((($kb $premise $conclusion $a $ba $fallback) $args)
+           ($res
+              (reduce
+                 (reduce
+                    (cons $fun
+                       ($kb $premise $conclusion
+                          (normalize-expected-tv $a)
+                          (normalize-expected-tv $ba)
+                          (normalize-expected-tv $fallback)))))))
+         $res)
+      (if (== $fun TotalMpFormula)
+         (let*
+         ((($a $ba $bna) $args)
+           ($res
+              (reduce
+                 (reduce
+                    (cons $fun
+                       ((normalize-expected-tv $a) (normalize-expected-tv $ba) (normalize-expected-tv $bna)))))))
+         $res)
+      (if (is-member $fun (() MpFormula AndFormula OrFormula LikelierThanFormula))
       (let*
          ((($a $b) $args)
            ($res (reduce (reduce (cons $fun ((normalize-expected-tv $a) (normalize-expected-tv $b)))))))
@@ -34,7 +57,7 @@
                           (cons $fun
                              ((normalize-expected-tv $a) (normalize-expected-tv $b) (normalize-expected-tv $ab)))))))
                $res)
-            ()))))
+            ()))))))
 
 (= (first-cpu-expected-tv $fun $args)
    (let $res (let $hits (collapse (cpu-expected-tv $fun $args)) (if (== $hits ()) () (car-atom $hits)))

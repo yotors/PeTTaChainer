@@ -19,6 +19,22 @@
 !(compileadd negEvidenceMergeKb (: d (Dog) (STV 0.5 1.0)))
 
 !(test (collapse (query 100 negEvidenceMergeKb (: $prf (Animal) $tv)))
-   ((: (merge/revision (rule-proof d_a d) (rule-proof nd_a (negated d)))
-       (Animal)
-       (STV 0.25 0.39999999999999997))))
+   ((: (rule-proof d_a d) (Animal) (STV 0.5 0.5))))
+
+!(test (length (collapse (query 100 negEvidenceMergeKb (: $prf (Animal) $tv)))) 1)
+
+!(compileadd totalMpFallbackKb (: d (Dog) (STV 0.5 1.0)))
+
+!(compileadd totalMpFallbackKb
+   (: d_a (Implication (Premises (Dog)) (Conclusions (Animal))) (STV 0.8 0.6)))
+
+!(test (collapse (query 100 totalMpFallbackKb (: $prf (Animal) $tv)))
+   ((: (rule-proof d_a d) (Animal) (STV 0.4 0.3))))
+
+!(compileadd totalMpNegOnlyKb (: d (Dog) (STV 0.5 1.0)))
+
+!(compileadd totalMpNegOnlyKb
+   (: nd_a (Implication (Premises (Not (Dog))) (Conclusions (Animal))) (STV 0.8 0.6)))
+
+!(test (collapse (query 100 totalMpNegOnlyKb (: $prf (Animal) $tv)))
+   ((: (rule-proof nd_a (negated d)) (Animal) (STV 0.4 0.3))))

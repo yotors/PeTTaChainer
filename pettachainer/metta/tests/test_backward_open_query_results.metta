@@ -8,8 +8,8 @@
    (: (no_inverse dog_to_animal) (Implication (Premises (Dog $x)) (Conclusions (Animal $x))) (STV 1.0 1.0)))
 
 !(test (collapse (query 20 openQueryKb (: $prf (Animal $a) $tv)))
-   ((: (rule-proof (no_inverse dog_to_animal) d1) (Animal max) (STV 1.0 1.0))
-    (: (rule-proof (no_inverse dog_to_animal) d2) (Animal ann) (STV 1.0 1.0))))
+   ((: (rule-proof (no_inverse dog_to_animal) d2) (Animal ann) (STV 1.0 1.0))
+    (: (rule-proof (no_inverse dog_to_animal) d1) (Animal max) (STV 1.0 1.0))))
 
 !(compileadd openTimeKb (: tx1 (AtTime (FeatureX 0) 1) (STV 1.0 0.9)))
 
@@ -26,8 +26,8 @@
    (collapse (query 50 openTimeKb (: $prf (AtTime $f $t) $tv)))
    ((: tx1 (AtTime (FeatureX 0) 1) (STV 1.0 0.9))
     (: ty1 (AtTime (FeatureY 0) 1) (STV 1.0 0.9))
-    (: (rule-proof timeAndRule (rule-proof conjunction ty1 tx1)) (AtTime (And (FeatureY 0) (FeatureX 0)) 1) (STV 1.0 0.9))
-    (: (rule-proof timeAndRule (rule-proof conjunction tx1 ty1)) (AtTime (And (FeatureX 0) (FeatureY 0)) 1) (STV 1.0 0.9))))
+    (: (rule-proof timeAndRule (rule-proof conjunction tx1 ty1)) (AtTime (And (FeatureX 0) (FeatureY 0)) 1) (STV 1.0 0.9))
+    (: (rule-proof timeAndRule (rule-proof conjunction ty1 tx1)) (AtTime (And (FeatureY 0) (FeatureX 0)) 1) (STV 1.0 0.9))))
 
 !(compileadd openAndFairKb (: haveMax (Have (i max)) (STV 1.0 1.0)))
 
@@ -74,7 +74,7 @@
    (: distractRule6 (Implication (Premises (Distract6 $x)) (Conclusions (Pet $x))) (STV 1.0 1.0)))
 
 !(test
-   (collapse (query 20 openAndFairKb (: $prf (And (Own (i $a)) (Pet $a)) $tv)))
+   (collapse (query 30 openAndFairKb (: $prf (And (Own (i $a)) (Pet $a)) $tv)))
    ((: (rule-proof conjunction (rule-proof ownRule haveMax) (rule-proof distractRule6 distract6))
        (And (Own (i max)) (Pet max))
        (STV 0.8 1.0))

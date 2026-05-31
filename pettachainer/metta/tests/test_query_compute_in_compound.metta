@@ -19,3 +19,13 @@
     (: (rule-proof query-compound (rule-proof conjunction p2 cpu p3))
        (And (P 2) (Compute + (2 1) 3) (P 3))
        (STV 1.0 1.0))))
+
+!(compileadd queryNotCompoundKb (: tallAlice (Tall alice) (STV 0.9 0.5)))
+
+!(compileadd queryNotCompoundKb (: femaleAlice (Female alice) (STV 0.9 0.5)))
+
+!(test
+   (collapse (query 20 queryNotCompoundKb (: $prf (And (Not (Tall alice)) (Female alice)) $tv)))
+   ((: (rule-proof query-compound (rule-proof conjunction (negated tallAlice) femaleAlice))
+       (And (Not (Tall alice)) (Female alice))
+       (STV 0.08999999999999998 0.04499999999999999))))

@@ -67,7 +67,7 @@
    ())
 
 !(test (query 30 kb (: $prf (ScoreTotal $x) $tv))
-   (: (rule-proof foldRule cpu) (ScoreTotal 6) (STV 1.0 1.0)))
+   (: (rule-proof foldRule (rule-proof foldall prf prf prf)) (ScoreTotal 6) (STV 1.0 1.0)))
 
 !(compileadd kb
    (: foldZeroRule
@@ -132,7 +132,13 @@
       (STV 1.0 1.0)))
 
 !(test (collapse (query 30 kb (: $prf (DerivedTotal $x) $tv)))
-   ((: (rule-proof foldDerivedRule cpu) (DerivedTotal 6) (STV 1.0 1.0))))
+   ((: (rule-proof foldDerivedRule
+           (rule-proof foldall
+              (rule-proof numFromCount (rule-proof conjunction prf cpu))
+              (rule-proof numFromCount (rule-proof conjunction prf cpu))
+              (rule-proof numFromCount (rule-proof conjunction prf cpu))))
+       (DerivedTotal 6)
+       (STV 1.0 1.0))))
 
 !(compileadd kb
    (: dogsInHouseRule
@@ -148,7 +154,14 @@
       (STV 1.0 1.0)))
 
 !(test (collapse (query 30 kb (: $prf (Cardinality (DogsIn house1) $x) $tv)))
-   ((: (rule-proof dogsInHouseRule (rule-proof conjunction prf1 cpu)) (Cardinality (DogsIn house1) 5) (STV 1.0 1.0))))
+   ((: (rule-proof dogsInHouseRule
+           (rule-proof conjunction
+              prf1
+              (rule-proof foldall
+                 (rule-proof conjunction prf5 prf10)
+                 (rule-proof conjunction prf4 prf8))))
+       (Cardinality (DogsIn house1) 5)
+       (STV 1.0 1.0))))
 
 !(compileadd kb
    (: apbisc (Implication (Premises (Count A $a) (Count B $b) (Compute + ($a $b) -> $c)) (Conclusions (Count C $c))) (STV 1.0 1.0)))

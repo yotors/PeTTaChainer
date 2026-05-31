@@ -85,6 +85,7 @@
    (is-member $f (() NotFormula DistGreaterThanFormula DistGreaterThanDistFormula)))
 
 (= (cpu-premise-tv FoldAllCompiled $_args $_res) (STV 1.0 1.0))
+(= (cpu-premise-tv GroupedFoldAllCompiled $_args $_res) (STV 1.0 1.0))
 (= (cpu-premise-tv $f $args $res) (if (cpu-premise-tv-formula $f) $res (STV 1.0 1.0)))
 
 (= (source-premise-kb $kb $ctx $vars)
@@ -157,20 +158,15 @@
 (= (query-compound-child-bundle $kb $ctx $vars $premise)
    (if (compound-source? $premise)
       (let (cons $head $tail) $premise (query-compound-premise-bundle $kb $ctx $vars $head $tail))
-      (case $premise (
-           ((Compute $f $args -> $res) (once (lower-source-premise $kb $ctx $vars $premise)))
-           ((Compute $f $args $res) (once (lower-source-premise $kb $ctx $vars $premise)))
-           ((MapDist $fun $a $value -> $out) (once (lower-source-premise $kb $ctx $vars $premise)))
-           ((Map2Dist $fun $a $valuea $b $valueb -> $out) (once (lower-source-premise $kb $ctx $vars $premise)))
-           ((AverageDist $pattern $value -> $out) (once (lower-source-premise $kb $ctx $vars $premise)))
-           ((FoldAllValue $pattern $init $fun -> $out) (once (lower-source-premise $kb $ctx $vars $premise)))
-           ((FoldAll $pattern $value $init $fun -> $out) (once (lower-source-premise $kb $ctx $vars $premise)))
-           ((Not $a) (once (lower-source-premise $kb $ctx $vars $premise)))
-           (($rel $a $b)
-              (if (is-member $rel (GreaterThan >))
-                 (once (lower-source-premise $kb $ctx $vars $premise))
-                 (leaf-source-bundle $kb $ctx $vars $premise)))
-           ($other (leaf-source-bundle $kb $ctx $vars $premise))))))
+      (if (is-expr $premise)
+         (let $head (car-atom $premise)
+            (if (is-var $head)
+               (leaf-source-bundle $kb $ctx $vars $premise)
+               (if (is-member $head
+                     (Compute MapDist Map2Dist AverageDist FoldAllValue FoldAll Not GreaterThan >))
+                  (once (lower-source-premise $kb $ctx $vars $premise))
+                  (leaf-source-bundle $kb $ctx $vars $premise))))
+         (leaf-source-bundle $kb $ctx $vars $premise))))
 
 (= (query-compound-premise-state (premise-bundle $execs $tv $proof))
    (query-compound-state $execs ($proof) $tv))
@@ -203,8 +199,25 @@
          ((cons (Compute $_f $_args $_res) $_rest) true)
          ((cons $_item $rest) (compound-direct-query-compute? $rest))))))
 
+(= (query-compound-child-needs-bundle? $premise)
+   (if (compound-source? $premise)
+      (query-compound-needs-bundle? $premise)
+      (if (is-expr $premise)
+         (let $head (car-atom $premise)
+            (if (is-var $head) false
+               (is-member $head
+                  (Compute MapDist Map2Dist AverageDist FoldAllValue FoldAll Not GreaterThan >))))
+         false)))
+
+(= (compound-direct-query-bundle? $items)
+   (if (== $items ()) false
+      (case $items (
+         ((cons $item $rest)
+            (or (query-compound-child-needs-bundle? $item)
+               (compound-direct-query-bundle? $rest)))))))
+
 (= (query-compound-needs-bundle? $term)
-   (if (is-expr $term) (compound-direct-query-compute? (cdr-atom $term)) false))
+   (if (is-expr $term) (compound-direct-query-bundle? (cdr-atom $term)) false))
 
 (= (compile-adapter-chain plain (: $kb $prf (@ $type (cons $head $tail)) $tv))
    (if (compound-source? $type)
@@ -308,8 +321,10 @@
            ($other (bundle-from-execs ((: ($kb $ctx $vars) $prf $other $tv)) $tv $prf))))))
 
 (= (lower-source-premise $kb $ctx $vars $premise)
-   (if (and (is-expr $premise) (and (is-var (car-atom $premise)) (== (cdr-atom $premise) ())))
-      (leaf-source-bundle $kb $ctx $vars (car-atom $premise))
+   (if (and (is-expr $premise) (is-var (car-atom $premise)))
+      (if (== (cdr-atom $premise) ())
+         (leaf-source-bundle $kb $ctx $vars (car-atom $premise))
+         (leaf-source-bundle $kb $ctx $vars $premise))
       (lower-source-premise-non-open $kb $ctx $vars $premise)))
 
 (=
@@ -321,23 +336,112 @@
          (append $current-proofs ($proof))
          $next-tv)))
 
-(= (lower-source-premises-step $kb $ctx $vars $acc $premise)
-   (append-premise-bundle $acc (lower-source-premise $kb $ctx $vars $premise)))
+(= (compile-same-var-in-list? $_var ()) false)
+(= (compile-same-var-in-list? $var (cons $head $tail))
+   (or (== $var $head) (compile-same-var-in-list? $var $tail)))
 
-(= (lower-source-premises $kb $ctx $vars $premises)
+(= (compile-var-list-subtract () $_exclude) ())
+(= (compile-var-list-subtract (cons $var $rest) $exclude)
+   (if (compile-same-var-in-list? $var $exclude)
+      (compile-var-list-subtract $rest $exclude)
+      (cons $var (compile-var-list-subtract $rest $exclude))))
+
+(= (compile-has-vars? $vars) (not (== $vars ())))
+
+(= (fold-existential-premise-bundle $kb $ctx $vars $premise $group-vars)
+   (let $prem-kb (source-premise-kb $kb $ctx $vars)
+      (if (== $group-vars ())
+         (bundle-from-execs
+            ((CPU FoldAllCompiled
+                 ($prem-kb $premise extract-tv (STV 0.0 1.0) OrFormula identity result-tv)
+                 $fold-tv))
+            $fold-tv
+            cpu)
+         (bundle-from-execs
+            ((CPU GroupedFoldAllCompiled
+                 ($prem-kb $premise $group-vars extract-tv (STV 0.0 1.0) OrFormula identity result-tv)
+                 $fold-tv))
+            $fold-tv
+            cpu))))
+
+(= (existential-foldable-premise? $premise)
+   (if (is-expr $premise)
+      (let $head (car-atom $premise)
+         (if (is-var $head) true
+            (not
+               (is-member $head
+                  (Implication Compute MapDist Map2Dist AverageDist FoldAllValue FoldAll Not GreaterThan >)))))
+      true))
+
+(= (lower-source-premise-with-existentials $kb $ctx $vars $premise)
+   (if (and (is-expr $premise) (and (not (is-var (car-atom $premise))) (== (car-atom $premise) ExistentialFold)))
+      (let $args (cdr-atom $premise)
+         (fold-existential-premise-bundle $kb $ctx $vars (car-atom $args) (car-atom (cdr-atom $args))))
+      (lower-source-premise $kb $ctx $vars $premise)))
+
+(= (compile-premise-local-vars $conclusion-vars $other-vars $premise)
+   (let $premise-vars (list_to_set (extract-vars $premise))
+      (compile-var-list-subtract (compile-var-list-subtract $premise-vars $conclusion-vars) $other-vars)))
+
+(= (compile-premise-has-existentials? $conclusion-vars $other-vars $premise)
+   (let $local-vars (compile-premise-local-vars $conclusion-vars $other-vars $premise)
+      (and (existential-foldable-premise? $premise) (compile-has-vars? $local-vars))))
+
+(= (compile-premise-group-vars $conclusion-vars $other-vars $premise)
+   (let*
+      (($premise-vars (list_to_set (extract-vars $premise)))
+        ($local-vars (compile-premise-local-vars $conclusion-vars $other-vars $premise)))
+      (compile-var-list-subtract $premise-vars $local-vars)))
+
+(= (partition-existential-premises-walk $_conclusion-vars $_prior-vars $normal $folded ())
+   ($normal $folded))
+(= (partition-existential-premises-walk $conclusion-vars $prior-vars $normal $folded (cons $premise $rest))
+   (let*
+      (($premise-vars (list_to_set (extract-vars $premise)))
+        ($rest-vars (list_to_set (extract-vars $rest)))
+        ($other-vars (append $prior-vars $rest-vars))
+        ($nprior (append $prior-vars $premise-vars)))
+      (if (compile-premise-has-existentials? $conclusion-vars $other-vars $premise)
+         (let $group-vars (compile-premise-group-vars $conclusion-vars $other-vars $premise)
+            (partition-existential-premises-walk $conclusion-vars $nprior $normal (append $folded ((ExistentialFold $premise $group-vars))) $rest))
+         (partition-existential-premises-walk $conclusion-vars $nprior (append $normal ($premise)) $folded $rest))))
+
+(= (partition-existential-premises $conclusion-vars $premises)
+   (let*
+      ((($normal $folded)
+          (partition-existential-premises-walk $conclusion-vars () () () $premises)))
+      (append $normal $folded)))
+
+(= (lower-source-premises-step $kb $ctx $vars $acc $premise)
+   (append-premise-bundle $acc
+      (lower-source-premise-with-existentials $kb $ctx $vars $premise)))
+
+(= (lower-source-premises-list $kb $ctx $vars $premises)
    (fold-flat (lower-source-premises-step $kb $ctx $vars)
       (compiled-premises () () (STV 1.0 1.0))
       $premises))
 
+(= (lower-source-premises $kb $ctx $vars $premises $conclusions)
+   (let*
+      (($conclusion-vars (list_to_set (extract-vars $conclusions)))
+        ($ordered-premises (partition-existential-premises $conclusion-vars $premises)))
+      (lower-source-premises-list $kb $ctx $vars $ordered-premises)))
+
+(= (lower-source-premises $kb $ctx $vars $premises)
+   (lower-source-premises-list $kb $ctx $vars $premises))
+
 (= (lower-query-assumption-premise $kb $ctx $vars $premise)
    (if (is-var $premise) (lower-source-premise $kb $ctx $vars $premise)
-      (case $premise (
-         ((Implication (cons Premises $_premises) (cons Conclusions $_conclusions))
-            (leaf-source-bundle $kb $ctx $vars $premise))
-         ((Not $a)
-            (let $prem-kb (source-premise-kb $kb $ctx $vars)
-               (bundle-from-execs ((: $prem-kb $prf $a (STV 0.0 1.0))) (STV 1.0 1.0) $prf)))
-         ($other (lower-source-premise $kb $ctx $vars $premise))))))
+      (if (is-expr $premise)
+         (let $head (car-atom $premise)
+            (if (is-var $head) (lower-source-premise $kb $ctx $vars $premise)
+               (if (== $head Implication)
+                  (leaf-source-bundle $kb $ctx $vars $premise)
+                  (if (== $head Not)
+                     (let $prem-kb (source-premise-kb $kb $ctx $vars)
+                        (bundle-from-execs ((: $prem-kb $prf (car-atom (cdr-atom $premise)) (STV 0.0 1.0))) (STV 1.0 1.0) $prf))
+                     (lower-source-premise $kb $ctx $vars $premise)))))
+         (lower-source-premise $kb $ctx $vars $premise))))
 
 (= (lower-query-assumption-premises-step $kb $ctx $vars $acc $premise)
    (append-premise-bundle $acc (lower-query-assumption-premise $kb $ctx $vars $premise)))
@@ -347,17 +451,24 @@
       (compiled-premises () () (STV 1.0 1.0))
       $premises))
 
+(= (implication-pair-premise $premises $a)
+   (case $premises (
+      (($premise) $premise)
+      ($_ $a))))
+
 (= (build-implication-plan $kb $prf $premises $conclusions)
    (let*
-      (((compiled-premises $execs $proofs $atv) (once (lower-source-premises $kb $ctx $vars $premises)))
+      (((compiled-premises $execs $proofs $atv) (once (lower-source-premises $kb $ctx $vars $premises $conclusions)))
         ($shape-kb ($kb $ctx $vars))
         ($a (execs-goal-type $execs))
+        ($pair-a (implication-pair-premise $premises $a))
         ($b (seq2expr $conclusions))
         ($nb (skolemize $prf $a $b))
         ($na (skolemize $prf $b $a))
         ($skip-inverse (or (disable-inversion-proof-id? $prf) (contains-cpu? $a))))
       (compiled-implication $shape-kb
          $a
+         $pair-a
          $b
          $nb
          $na
@@ -409,6 +520,40 @@
 
 (= (disable-inversion-proof-id? $prf) (or (= $prf (mined_implication $_ $_)) (= $prf (no_inverse $_))))
 
+(= (index-source-implication $kb (: $prf (Implication (cons Premises ($premise)) (cons Conclusions ($conclusion))) $tv))
+   (chainer-add-atom implication_index ($kb $premise $conclusion $prf $tv)))
+(= (index-source-implication $_kb $_stmt) ())
+
+(= (complement-premise (Not $premise)) $premise)
+(= (complement-premise $premise) (Not $premise))
+
+(= (complement-implication-tv $kb $premise $conclusion $fallback)
+   (let*
+      (($comp (complement-premise $premise))
+       ($hits
+          (collapse
+             (once
+                (match implication_index ($kb $comp $conclusion $_prf $tv)
+                   $tv)))))
+      (if (== $hits ()) $fallback (car-atom $hits))))
+
+(= (positive-complement-implication-exists? $kb $premise $conclusion)
+   (not
+      (==
+         (collapse
+            (once
+               (match implication_index ($kb $premise $conclusion $_prf $_tv)
+                  true)))
+         ())))
+
+(= (TotalMpConclusionFormula $kb $premise $conclusion $atv $tv $fallback)
+   (case $premise (
+      ((Not $positive-premise)
+         (if (positive-complement-implication-exists? $kb $positive-premise $conclusion)
+            (empty)
+            (TotalMpFormula $atv $tv (complement-implication-tv $kb $premise $conclusion $fallback))))
+      ($_ (TotalMpFormula $atv $tv (complement-implication-tv $kb $premise $conclusion $fallback))))))
+
 (= (implication-proof-token $proofs)
    (case $proofs (
       (() cpu)
@@ -416,12 +561,14 @@
       ((cons $proof $rest)
          (cons rule-proof (cons conjunction (cons $proof $rest)))))))
 
-(= (compile-implication-forward-rules $shape-kb $adapter-kb $prf $tv $a $b $execs $proofs $atv)
+(= (compile-implication-forward-rules $source-kb $shape-kb $adapter-kb $prf $tv $a $pair-a $b $execs $proofs $atv)
    (superpose (
       (once
          (let*
             (($proof-token (implication-proof-token $proofs))
-              ($allargs (append $execs ((CPU MpFormula ($tv $atv) $btv)))))
+              ($allargs
+                 (append $execs
+                    ((CPU TotalMpConclusionFormula ($source-kb $pair-a $b $atv $tv (STV 0.0 0.0)) $btv)))))
             ($allargs |- ((: $shape-kb ($prf $proof-token) $b $btv)))))
       (if (is-var $b) (empty) (compile-outputs (: $adapter-kb ($prf $prfb) $b $btv2)))
       (if (is-var $a) (empty) (compile-adapter-chain plain (: $adapter-kb $prfa $a $atv))))))
@@ -443,9 +590,9 @@
       (if (= $Type (Implication (cons Premises $premises) (cons Conclusions $conclusions)))
          (let*
             (($plan (build-implication-plan $kb $prf $premises $conclusions))
-              ((compiled-implication $shape-kb $a $b $nb $na $skip-inverse $execs $proofs $atv) $plan))
+              ((compiled-implication $shape-kb $a $pair-a $b $nb $na $skip-inverse $execs $proofs $atv) $plan))
             (superpose (
-                 (compile-implication-forward-rules $shape-kb (kbctx $kb) $prf $tv $a $b $execs $proofs $atv)
+                 (compile-implication-forward-rules $kb $shape-kb (kbctx $kb) $prf $tv $a $pair-a $b $execs $proofs $atv)
                  (if (not $skip-inverse) (inverse-implication $kb $prf $na $b $tv) (empty))
 	                 (if (or $skip-inverse (is-var $na)) (empty)
 	                    (compile-outputs (: ((inverted $prf $pa $pb1) $pb2) $na $natv)))
@@ -522,7 +669,7 @@
       false))
 
 (= (query-compound-needs-temp-rule? $term)
-   (if (is-expr $term) (compound-direct-query-compute? (cdr-atom $term)) false))
+   (query-compound-needs-bundle? $term))
 
 (= (compound-query-temp-stmt (: $_prf $type $_tv))
    (let*
@@ -537,12 +684,13 @@
       (if (= $type (Implication (cons Premises $premises) (cons Conclusions $conclusions)))
          (let*
             (((compiled-premises $execs $proofs $atv)
-                 (once (lower-source-premises $kbid $ctx $mvars $premises)))
+                 (once (lower-source-premises $kbid $ctx $mvars $premises $conclusions)))
               ($shape-kb ($kbid $ctx $mvars))
               ($a (execs-goal-type $execs))
+              ($pair-a (implication-pair-premise $premises $a))
               ($b (seq2expr $conclusions)))
             (collapse
-               (compile-implication-forward-rules $shape-kb $shape-kb $ctxprf $tv $a $b $execs $proofs $atv)))
+               (compile-implication-forward-rules $kbid $shape-kb $shape-kb $ctxprf $tv $a $pair-a $b $execs $proofs $atv)))
          ())))
 
 (= (query-context-premise-assumption-adds $kbid $ctx $mvars $ctxprf $type $tv)
@@ -647,9 +795,14 @@
 
 (= (extract-mined-itv-from-args $args $fallback-tv)
    (if (= $args ($_prem (CPU MpFormula ($itv $_atv) $_btv))) $itv
-      (if (= $args (cons $h $t))
-         (if (= $h (CPU MpFormula ($itv $_atv2) $_btv2)) $itv (extract-mined-itv-from-args $t $fallback-tv))
-         $fallback-tv)))
+      (if (= $args ($_prem (CPU TotalMpFormula ($_atv $itv $_not-a-b-tv) $_btv))) $itv
+         (if (= $args ($_prem (CPU TotalMpConclusionFormula ($_kb $_pair-a $_b $_atv2 $itv $_fallback) $_btv2))) $itv
+            (if (= $args (cons $h $t))
+               (if (= $h (CPU MpFormula ($itv $_atv3) $_btv3)) $itv
+                  (if (= $h (CPU TotalMpFormula ($_atv4 $itv $_not-a-b-tv2) $_btv4)) $itv
+                     (if (= $h (CPU TotalMpConclusionFormula ($_kb2 $_pair-a2 $_b2 $_atv5 $itv $_fallback2) $_btv5)) $itv
+                        (extract-mined-itv-from-args $t $fallback-tv))))
+               $fallback-tv)))))
 
 (= (pretty (: $prf $type $tv)) (: (pretty-prf $prf) $type $tv))
 (= (pretty (rules ($args |- $goal)))
