@@ -93,6 +93,17 @@
 (= (premises-expected-confidence (cons $prem $rest))
    (premises-expected-confidence-step $prem $rest))
 
+(= (score-tv $score) (STV 1.0 (max 0.0 (min 1.0 $score))))
+
+(= (optimistic-revision-score $current-score $candidate-score)
+   (tv-confidence (mergetvs (score-tv $current-score) (score-tv $candidate-score))))
+
+(= (rule-marginal-score no-current $candidate-score) $candidate-score)
+(= (rule-marginal-score $current-score $candidate-score)
+   (max 0.000001
+      (- (max $candidate-score (optimistic-revision-score $current-score $candidate-score))
+         $current-score)))
+
 (= (bounded-agenda-target-size $steps) (min 1000 (max 1 $steps)))
 (= (bounded-agenda-prune-factor) 64)
 

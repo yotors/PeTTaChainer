@@ -86,3 +86,47 @@
 
 !(test (collapse (query 5 priorityNegKb (: $prf (NegPriorityGoal) $tv)))
    ((: (rule-proof lowNegRule (negated lowInput)) (NegPriorityGoal) (STV 0.9 0.9))))
+
+!(compileadd incumbentPriorityKb (: directB (IncumbentB) (STV 1.0 0.9)))
+
+!(compileadd incumbentPriorityKb (: directA (IncumbentA) (STV 1.0 1.0)))
+
+!(compileadd incumbentPriorityKb (: directC (IncumbentC) (STV 1.0 1.0)))
+
+!(compileadd incumbentPriorityKb
+   (: bToGoal
+      (Implication (Premises (IncumbentB)) (Conclusions (IncumbentGoal)))
+      (STV 1.0 0.99)))
+
+!(compileadd incumbentPriorityKb
+   (: dToGoal
+      (Implication (Premises (IncumbentD)) (Conclusions (IncumbentGoal)))
+      (STV 1.0 0.7)))
+
+!(compileadd incumbentPriorityKb
+   (: aToB
+      (Implication (Premises (IncumbentA)) (Conclusions (IncumbentB)))
+      (STV 1.0 1.0)))
+
+!(compileadd incumbentPriorityKb
+   (: cToD
+      (Implication (Premises (IncumbentC)) (Conclusions (IncumbentD)))
+      (STV 1.0 0.7)))
+
+!(test (collapse (query 2 incumbentPriorityKb (: $prf (IncumbentGoal) $tv)))
+   ((: (rule-proof bToGoal directB) (IncumbentGoal) (STV 1.0 0.9))))
+
+!(test (collapse (query 6 incumbentPriorityKb (: $prf (IncumbentGoal) $tv)))
+   ((: (merge/revision
+          (rule-proof bToGoal directB)
+          (rule-proof dToGoal (rule-proof cToD directC)))
+       (IncumbentGoal)
+       (STV 1.0 0.918918918918919))))
+
+!(test
+   (collapse
+      (query 6 incumbentPriorityKb
+         (: (merge/revision (rule-proof bToGoal (rule-proof aToB directA)) $_other)
+            (IncumbentGoal)
+            $tv)))
+   ())

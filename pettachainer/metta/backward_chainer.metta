@@ -396,7 +396,8 @@
 
 (= (expand-rule-goal-fold $agenda ($args $goal $parent-gid))
    (let*
-      (($bound (premises-expected-confidence (copy_term $args)))
+      (($expected-score (premises-expected-confidence (copy_term $args)))
+       ($bound (rule-marginal-score (goal-current-confidence $parent-gid) $expected-score))
        ($bundle (copy_term (make-and-bundle $goal $args))))
       (spawn-frontier-heap $agenda
          $parent-gid

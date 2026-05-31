@@ -243,6 +243,22 @@
                        $rest)
                     (if (== $merged ()) () ((materialize-result-atom $merged))))))))))
 
+(= (goal-current-output $gid)
+   (let*
+      (($pids (goal-live-proof-ids $gid))
+        (($_depth $goal $_expanded $_pending) (goal-by-id $gid)))
+      (if (goal-has-type-vars? $goal) no-current
+         (case $pids (
+              (() no-current)
+              ((cons $pid $rest)
+                 (fold-flat (|-> ($acc $next-pid) (merge-proof-atoms $acc (proof-output-atom $next-pid)))
+                    (proof-output-atom $pid)
+                    $rest)))))))
+
+(= (goal-current-confidence $gid)
+   (let $current (goal-current-output $gid)
+      (if (== $current no-current) no-current (term-confidence $current))))
+
 (= (leaf-evidence-for-result $result)
    (if (= $result ($type ($kbid $_ctx $_vars) $prf $_tv))
       (if (contains-hash? $type) () ((fact-ev ($kbid $_ctx $_vars) $prf $type)))
