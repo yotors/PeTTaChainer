@@ -170,7 +170,13 @@
 
 (= (next-pid) (next-search-id bwd_pid))
 
-(= (cpu-call $_steps $fun $args) (reduce (reduce (cons $fun $args))))
+(= (cpu-call-reduce $steps $expr)
+   (if (<= $steps 0)
+      $expr
+      (let $next (reduce $expr)
+         (if (== $next $expr) $next (cpu-call-reduce (- $steps 1) $next)))))
+
+(= (cpu-call $steps $fun $args) (cpu-call-reduce $steps (cons $fun $args)))
 
 (= (proof-stats-by-id $pid) (match &proof ($pid $_gid $_output $_kind $score $ev $_children) ($score $ev)))
 
