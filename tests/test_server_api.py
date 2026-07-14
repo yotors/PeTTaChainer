@@ -88,6 +88,72 @@ def test_kb_statement_and_reasoning_flow(monkeypatch):
         assert forward.json()["forward_result"] == ["true"]
 
 
+def test_bulk_statement_ingestion_is_atomic_and_idempotent(monkeypatch):
+    with make_client(monkeypatch) as client:
+        created = client.post("/v1/knowledge-bases", json={"name": "bulk"})
+        kb_id = created.json()["id"]
+        payload = {
+            "statements": [
+                {
+                    "source": "(: dog (Dog fido) (STV 1.0 1.0))",
+                    "idempotency_key": "dog",
+                },
+                {
+                    "source": "(: cat (Cat mittens) (STV 1.0 1.0))",
+                    "idempotency_key": "cat",
+                },
+            ]
+        }
+
+        added = client.post(f"/v1/knowledge-bases/{kb_id}/statements/bulk", json=payload)
+        assert added.status_code == 201
+        assert added.json()["revision"] == 2
+        assert [item["created_revision"] for item in added.json()["items"]] == [1, 2]
+
+        retried = client.post(f"/v1/knowledge-bases/{kb_id}/statements/bulk", json=payload)
+        assert retried.status_code == 201
+        assert retried.json() == added.json()
+
+        conflict = client.post(
+            f"/v1/knowledge-bases/{kb_id}/statements/bulk",
+            json={
+                "statements": [
+                    {
+                        "source": "(: bird (Bird tweety) (STV 1.0 1.0))",
+                        "idempotency_key": "dog",
+                    },
+                    {
+                        "source": "(: mouse (Mouse jerry) (STV 1.0 1.0))",
+                        "idempotency_key": "mouse",
+                    },
+                ]
+            },
+        )
+        assert conflict.status_code == 409
+
+        invalid = client.post(
+            f"/v1/knowledge-bases/{kb_id}/statements/bulk",
+            json={
+                "statements": [
+                    {
+                        "source": "(: bird (Bird tweety) (STV 1.0 1.0))",
+                        "idempotency_key": "bird",
+                    },
+                    {
+                        "source": '(: bad (eval (py-eval "danger")) (STV 1.0 1.0))',
+                        "idempotency_key": "bad",
+                    },
+                ]
+            },
+        )
+        assert invalid.status_code == 422
+
+        listed = client.get(f"/v1/knowledge-bases/{kb_id}/statements")
+        assert listed.status_code == 200
+        assert len(listed.json()["items"]) == 2
+        assert listed.json()["revision"] == 2
+
+
 def test_policy_errors_are_structured(monkeypatch):
     with make_client(monkeypatch) as client:
         response = client.post(

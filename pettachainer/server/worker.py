@@ -286,13 +286,29 @@ def _execute(job: dict[str, Any], work_dir: str) -> dict[str, Any]:
 
     handler = PeTTaChainer(logic_config=job.get("logic_config", "pln"))
 
-    if operation == "validate":
-        source = job["source"]
-        evaluated = handler.evaluate_statement(source) if job["kind"] == "statement" else handler.evaluate_query(source)
-        checker = check_stmt if job["kind"] == "statement" else check_query
-        if checker(evaluated) == 0.0:
-            raise ValueError(f"PeTTa rejected the evaluated {job['kind']}")
-        return {"evaluated": evaluated}
+    if operation in {"validate", "validate_statements"}:
+        sources = job["sources"] if operation == "validate_statements" else [job["source"]]
+        evaluated_sources = []
+        for source in sources:
+            evaluated = (
+                handler.evaluate_statement(source)
+                if operation == "validate_statements" or job["kind"] == "statement"
+                else handler.evaluate_query(source)
+            )
+            checker = (
+                check_stmt
+                if operation == "validate_statements" or job["kind"] == "statement"
+                else check_query
+            )
+            if checker(evaluated) == 0.0:
+                kind = "statement" if operation == "validate_statements" else job["kind"]
+                raise ValueError(f"PeTTa rejected the evaluated {kind}")
+            evaluated_sources.append(evaluated)
+        return {
+            "evaluated": evaluated_sources
+            if operation == "validate_statements"
+            else evaluated_sources[0]
+        }
 
     raise ValueError(f"unsupported worker operation: {operation}")
 

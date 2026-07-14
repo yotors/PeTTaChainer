@@ -49,61 +49,78 @@ def owned_kb(db: Session, kb_id: uuid.UUID, owner_id: str, *, lock: bool = False
     return knowledge_base
 
 
-def add_statement(
+def add_statements(
     db: Session,
     kb_id: uuid.UUID,
     owner_id: str,
-    parsed: ParsedStatement,
-    mine_patterns: bool,
-    idempotency_key: str,
+    items: list[tuple[ParsedStatement, bool, str]],
     settings: Settings,
-) -> Statement:
+) -> tuple[list[Statement], int]:
     knowledge_base = owned_kb(db, kb_id, owner_id, lock=True)
-    existing = db.scalar(
-        select(Statement).where(
-            Statement.knowledge_base_id == kb_id,
-            Statement.idempotency_key == idempotency_key,
-        )
-    )
-    if existing is not None:
-        if existing.source != parsed.source or existing.mine_patterns != mine_patterns:
-            raise ConflictError("idempotency key was already used for a different statement")
-        return existing
+    keys = [idempotency_key for _, _, idempotency_key in items]
+    if len(keys) != len(set(keys)):
+        raise ConflictError("idempotency keys must be unique within a bulk request")
+    existing_by_key = {
+        statement.idempotency_key: statement
+        for statement in db.scalars(
+            select(Statement).where(
+                Statement.knowledge_base_id == kb_id,
+                Statement.idempotency_key.in_(keys),
+            )
+        ).all()
+    }
+    new_items: list[tuple[ParsedStatement, bool, str]] = []
+    ordered: list[Statement | None] = []
+    for parsed, mine_patterns, idempotency_key in items:
+        existing = existing_by_key.get(idempotency_key)
+        if existing is not None:
+            if existing.source != parsed.source or existing.mine_patterns != mine_patterns:
+                raise ConflictError("idempotency key was already used for a different statement")
+            ordered.append(existing)
+        else:
+            ordered.append(None)
+            new_items.append((parsed, mine_patterns, idempotency_key))
 
     count, total_bytes = db.execute(
         select(func.count(Statement.id), func.coalesce(func.sum(func.length(Statement.source)), 0)).where(
             Statement.knowledge_base_id == kb_id
         )
     ).one()
-    source_bytes = len(parsed.source.encode("utf-8"))
-    if count >= settings.max_statements_per_kb:
+    source_bytes = sum(len(parsed.source.encode("utf-8")) for parsed, _, _ in new_items)
+    if count + len(new_items) > settings.max_statements_per_kb:
         raise LimitExceededError("knowledge base statement limit reached")
     if total_bytes + source_bytes > settings.max_kb_source_bytes:
         raise LimitExceededError("knowledge base source-size limit reached")
 
-    knowledge_base.revision += 1
-    statement = Statement(
-        knowledge_base_id=kb_id,
-        kind=parsed.kind,
-        source=parsed.source,
-        mine_patterns=mine_patterns,
-        created_revision=knowledge_base.revision,
-        idempotency_key=idempotency_key,
-    )
-    db.add(statement)
-    db.flush()
-    db.add(
-        KnowledgeBaseEvent(
+    created_by_key: dict[str, Statement] = {}
+    for parsed, mine_patterns, idempotency_key in new_items:
+        knowledge_base.revision += 1
+        statement = Statement(
             knowledge_base_id=kb_id,
-            revision=knowledge_base.revision,
-            operation="add",
-            statement_id=statement.id,
+            kind=parsed.kind,
+            source=parsed.source,
+            mine_patterns=mine_patterns,
+            created_revision=knowledge_base.revision,
             idempotency_key=idempotency_key,
         )
-    )
+        db.add(statement)
+        db.flush()
+        db.add(
+            KnowledgeBaseEvent(
+                knowledge_base_id=kb_id,
+                revision=knowledge_base.revision,
+                operation="add",
+                statement_id=statement.id,
+                idempotency_key=idempotency_key,
+            )
+        )
+        created_by_key[idempotency_key] = statement
     db.commit()
-    db.refresh(statement)
-    return statement
+    result = [
+        statement or created_by_key[idempotency_key]
+        for statement, (_, _, idempotency_key) in zip(ordered, items)
+    ]
+    return result, knowledge_base.revision
 
 
 def statement_payloads(db: Session, kb_id: uuid.UUID, owner_id: str):

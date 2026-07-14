@@ -82,6 +82,20 @@ curl -sS http://127.0.0.1:8000/v1/knowledge-bases/KB_ID/statements \
   -d '{"source":"(: dog-fido (Dog fido) (STV 1.0 1.0))"}'
 ```
 
+Add many statements atomically. Each item has its own idempotency key, and a
+retry returns the previously created statements without advancing the
+knowledge-base revision:
+
+```bash
+curl -sS http://127.0.0.1:8000/v1/knowledge-bases/KB_ID/statements/bulk \
+  -H 'Authorization: Bearer YOUR_SECRET' \
+  -H 'Content-Type: application/json' \
+  -d '{"statements":[
+    {"source":"(: dog-fido (Dog fido) (STV 1.0 1.0))","idempotency_key":"dog-fido-v1"},
+    {"source":"(: cat-milo (Cat milo) (STV 1.0 1.0))","idempotency_key":"cat-milo-v1"}
+  ]}'
+```
+
 Run a backward query:
 
 ```bash

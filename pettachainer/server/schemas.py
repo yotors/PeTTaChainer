@@ -33,6 +33,14 @@ class AddStatement(ApiModel):
     mine_patterns: bool = False
 
 
+class BulkStatementItem(AddStatement):
+    idempotency_key: str = Field(min_length=1, max_length=200)
+
+
+class BulkAddStatements(ApiModel):
+    statements: list[BulkStatementItem] = Field(min_length=1, max_length=10_000)
+
+
 class StatementResponse(ApiModel):
     id: uuid.UUID
     knowledge_base_id: uuid.UUID

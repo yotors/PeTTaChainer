@@ -19,6 +19,7 @@ from .schemas import (
     AddStatement,
     BackwardReasonRequest,
     BackwardReasonResponse,
+    BulkAddStatements,
     CreateKnowledgeBase,
     ForwardReasonRequest,
     ForwardReasonResponse,
@@ -33,7 +34,7 @@ from .service import (
     ConflictError,
     LimitExceededError,
     NotFoundError,
-    add_statement,
+    add_statements,
     execute,
     owned_kb,
     statement_payloads,
@@ -219,15 +220,53 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
             settings,
         )
-        return add_statement(
+        statements, _revision = add_statements(
             db,
             kb_id,
             principal.owner_id,
-            parsed,
-            body.mine_patterns,
-            idempotency_key,
+            [(parsed, body.mine_patterns, idempotency_key)],
             settings,
         )
+        return statements[0]
+
+    @app.post(
+        "/v1/knowledge-bases/{kb_id}/statements/bulk",
+        response_model=StatementList,
+        status_code=201,
+    )
+    def create_statements_bulk(
+        kb_id: uuid.UUID,
+        body: BulkAddStatements,
+        principal: Principal = Depends(authenticate),
+        db: Session = Depends(get_db),
+    ):
+        if len(body.statements) > settings.max_statements_per_kb:
+            raise LimitExceededError("bulk request exceeds the knowledge base statement limit")
+        parsed_items = [
+            (
+                validate_statement_source(item.source, settings.max_statement_chars),
+                item.mine_patterns,
+                item.idempotency_key,
+            )
+            for item in body.statements
+        ]
+        knowledge_base = owned_kb(db, kb_id, principal.owner_id)
+        execute(
+            {
+                "operation": "validate_statements",
+                "sources": [parsed.source for parsed, _, _ in parsed_items],
+                "logic_config": knowledge_base.logic_config,
+            },
+            settings,
+        )
+        statements, revision = add_statements(
+            db,
+            kb_id,
+            principal.owner_id,
+            parsed_items,
+            settings,
+        )
+        return {"items": statements, "revision": revision}
 
     @app.get("/v1/knowledge-bases/{kb_id}/statements", response_model=StatementList)
     def list_statements(
