@@ -9,11 +9,28 @@ description = "Backward and forward PLN chaining on top of PeTTa"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "alembic>=1.16,<2",
+    "fastapi>=0.116,<1",
+    "janus-swi==1.5.2",
     "petta>=0.1.0",
+    "psycopg[binary]>=3.2,<4",
+    "pydantic-settings>=2.10,<3",
+    "sexpdata>=1.0,<2",
+    "sqlalchemy>=2.0,<3",
+    "uvicorn[standard]>=0.35,<1",
 ]
 
+[project.optional-dependencies]
+test = [
+    "httpx>=0.28,<1",
+    "pytest>=8.4,<9",
+]
+
+[project.scripts]
+pettachainer-server = "pettachainer.server.main:run"
+
 [tool.uv.sources]
-petta = { path = "../../PeTTa", editable = true }
+petta = { path = "../PeTTa", editable = true }
 
 [tool.setuptools.packages.find]
 include = ["pettachainer*"]

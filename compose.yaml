@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: pettachainer
+      POSTGRES_USER: pettachainer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pettachainer -d pettachainer"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  api:
+    build:
+      context: ..
+      dockerfile: PeTTaChainer/Dockerfile
+    environment:
+      PETTACHAINER_DATABASE_HOST: postgres
+      PETTACHAINER_DATABASE_NAME: pettachainer
+      PETTACHAINER_DATABASE_USER: pettachainer
+      PETTACHAINER_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      PETTACHAINER_API_KEYS: ${PETTACHAINER_API_KEYS:?set PETTACHAINER_API_KEYS}
+      PETTACHAINER_ALLOWED_HOSTS: ${PETTACHAINER_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      PETTACHAINER_ENVIRONMENT: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g,mode=700,uid=10001,gid=10001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 3g
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
