@@ -323,6 +323,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "statements": statements,
                 "query": query,
                 "steps": body.steps,
+                "max_derivations": settings.max_derivations,
             },
             settings,
         )
@@ -363,6 +364,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "seed_terms": seeds,
                 "query": query,
                 "query_steps": body.query_steps,
+                "max_derivations": settings.max_derivations,
             },
             settings,
         )

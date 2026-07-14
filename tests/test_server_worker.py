@@ -103,3 +103,26 @@ def test_horn_fallback_honors_forward_seed_selection():
 
     assert len(results) == 1
     assert "(Result B)" in results[0]
+
+
+def test_horn_fallback_preserves_alternative_proofs_for_same_conclusion():
+    results = _horn_reason(
+        {
+            "statements": [
+                {"source": "(: short (Length article Short) (STV 1.0 1.0))"},
+                {"source": "(: clear (Tone article Clear) (STV 1.0 1.0))"},
+                {
+                    "source": "(: from-length (Implication (Premises (Length $x Short)) (Conclusions (Engagement $x Low))) (STV 0.8 0.9))"
+                },
+                {
+                    "source": "(: from-tone (Implication (Premises (Tone $x Clear)) (Conclusions (Engagement $x Low))) (STV 0.7 0.85))"
+                },
+            ],
+            "query": "(: $proof (Engagement article Low) $tv)",
+            "steps": 10,
+        }
+    )
+
+    assert len(results) == 2
+    assert any("from-length" in result for result in results)
+    assert any("from-tone" in result for result in results)

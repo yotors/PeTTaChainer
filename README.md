@@ -146,7 +146,8 @@ container-runtime seccomp/AppArmor policy.
 
 Configuration is supplied with `PETTACHAINER_` environment variables. Useful
 limits include `WORKER_TIMEOUT_SECONDS`, `WORKER_MEMORY_MB`, `MAX_STEPS`,
-`MAX_RESULTS`, `MAX_STATEMENTS_PER_KB`, and `MAX_KB_SOURCE_BYTES`.
+`MAX_RESULTS`, `MAX_DERIVATIONS`, `MAX_STATEMENTS_PER_KB`, and
+`MAX_KB_SOURCE_BYTES`.
 
 ## Benchmarks
 

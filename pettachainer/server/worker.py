@@ -133,7 +133,8 @@ def _rule_truth(rule_tv: Any, premise_tvs: list[Any]) -> Any:
 def _horn_reason(job: dict[str, Any]) -> list[str]:
     facts: list[tuple[Any, Any, Any]] = []
     rules: list[tuple[Any, list[Any], list[Any], Any]] = []
-    seen: set[str] = set()
+    seen_derivations: set[str] = set()
+    max_derivations = max(1, int(job.get("max_derivations", 20_000)))
     for item in job["statements"]:
         statement = loads(item["source"])
         if not isinstance(statement, list) or len(statement) != 4 or str(statement[0]) != ":":
@@ -153,9 +154,9 @@ def _horn_reason(job: dict[str, Any]) -> list[str]:
                 if str(body[0]) == "BiImplication":
                     rules.append((proof, conclusions[1:], premises[1:], tv))
         else:
-            key = dumps(body)
-            if key not in seen:
-                seen.add(key)
+            key = dumps([body, proof, tv])
+            if key not in seen_derivations:
+                seen_derivations.add(key)
                 facts.append((body, proof, tv))
 
     if job.get("seed_terms"):
@@ -165,16 +166,20 @@ def _horn_reason(job: dict[str, Any]) -> list[str]:
             for fact in facts
             if any(_unify(seed, fact[0], {}) is not None for seed in seeds)
         ]
-        seen = {dumps(fact[0]) for fact in facts}
+        seen_derivations = {
+            dumps([fact, proof, tv])
+            for fact, proof, tv in facts
+        }
 
     for _ in range(max(0, int(job.get("steps", 0)))):
         changed = False
+        available_facts = list(facts)
         for rule_proof, premises, conclusions, rule_tv in rules:
             matches: list[tuple[dict[str, Any], list[Any], list[Any]]] = [({}, [], [])]
             for premise in premises:
                 next_matches: list[tuple[dict[str, Any], list[Any], list[Any]]] = []
                 for bindings, proofs, tvs in matches:
-                    for fact, fact_proof, fact_tv in facts:
+                    for fact, fact_proof, fact_tv in available_facts:
                         unified = _unify(_substitute(premise, bindings), fact, bindings)
                         if unified is not None:
                             next_matches.append((unified, [*proofs, fact_proof], [*tvs, fact_tv]))
@@ -186,9 +191,9 @@ def _horn_reason(job: dict[str, Any]) -> list[str]:
                 tv = _rule_truth(rule_tv, tvs)
                 for conclusion in conclusions:
                     fact = _substitute(conclusion, bindings)
-                    key = dumps(fact)
-                    if key not in seen:
-                        seen.add(key)
+                    key = dumps([fact, proof, tv])
+                    if key not in seen_derivations and len(facts) < max_derivations:
+                        seen_derivations.add(key)
                         facts.append((fact, proof, tv))
                         changed = True
         if not changed:

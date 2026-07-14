@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     max_kb_source_bytes: int = Field(default=16_777_216, ge=1024)
     max_results: int = Field(default=1000, ge=1, le=100_000)
     max_steps: int = Field(default=10_000, ge=1, le=1_000_000)
+    max_derivations: int = Field(default=20_000, ge=100, le=1_000_000)
 
     @property
     def sqlalchemy_url(self) -> URL:
